@@ -1,22 +1,22 @@
 package org.example.kv
 
-import org.junit.jupiter.api.extension.AfterEachCallback
-import org.junit.jupiter.api.extension.BeforeEachCallback
-import org.junit.jupiter.api.extension.ExtensionContext
-import org.junit.jupiter.api.extension.ParameterContext
-import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver
+import org.junit.jupiter.api.extension.*
 import java.nio.file.Files
 import java.nio.file.Files.deleteIfExists
 import java.nio.file.Path
 
-abstract class PathBasedExtension: TypeBasedParameterResolver<KeyValueStore>(), BeforeEachCallback, AfterEachCallback {
+abstract class PathBasedExtension<T>(private val clazz: Class<T>): ParameterResolver, BeforeEachCallback,
+        AfterEachCallback {
 
     private val paths: MutableMap<String, Path> = mutableMapOf()
 
-    abstract fun createKeyValueStore(path: Path): KeyValueStore
+    abstract fun createParameter(path: Path): T
 
     override fun resolveParameter(parameterContext: ParameterContext?, extensionContext: ExtensionContext?):
-            KeyValueStore? = createKeyValueStore(paths[extensionContext!!.tempFileName()]!!)
+            T? = createParameter(paths[extensionContext!!.tempFileName()]!!)
+
+    override fun supportsParameter(parameterContext: ParameterContext?, extensionContext: ExtensionContext?): Boolean
+            = parameterContext!!.parameter.type == clazz
 
     override fun beforeEach(context: ExtensionContext?) {
 

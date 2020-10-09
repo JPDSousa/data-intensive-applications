@@ -1,9 +1,7 @@
 package org.example.kv
 
-import org.junit.jupiter.api.Assertions.*
+import org.example.log.SingleFileLog
 import org.junit.jupiter.api.extension.*
-import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver
-import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -15,9 +13,10 @@ import java.nio.file.Path
 @ExtendWith(HashIndexKeyValueExtension::class)
 internal class HashIndexKeyValueStoreTest: KeyValueStoreTest
 
-internal class HashIndexKeyValueExtension: PathBasedExtension() {
+internal class HashIndexKeyValueExtension: PathBasedExtension<KeyValueStore>(KeyValueStore::class.java) {
 
-    override fun createKeyValueStore(path: Path): KeyValueStore = HashIndexKeyValueStore(TextKeyValueStore(path))
+    override fun createParameter(path: Path): KeyValueStore
+            = HashIndexKeyValueStore(TextKeyValueStore(SingleFileLog(path)))
 }
 
 

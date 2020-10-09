@@ -1,5 +1,6 @@
 package org.example.kv
 
+import org.example.log.SingleFileLog
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.Path
 
@@ -12,7 +13,8 @@ import java.nio.file.Path
 @ExtendWith(TextKeyValueExtension::class)
 class TextKeyValueStoreTest: KeyValueStoreTest
 
-internal class TextKeyValueExtension: PathBasedExtension() {
+internal class TextKeyValueExtension: PathBasedExtension<KeyValueStore>(KeyValueStore::class.java) {
 
-    override fun createKeyValueStore(path: Path): KeyValueStore = TextKeyValueStore(path)
+    override fun createParameter(path: Path): KeyValueStore
+            = TextKeyValueStore(SingleFileLog(path))
 }
