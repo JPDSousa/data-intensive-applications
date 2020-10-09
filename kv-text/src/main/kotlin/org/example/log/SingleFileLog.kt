@@ -3,20 +3,23 @@ package org.example.log
 import java.io.RandomAccessFile
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Files
 import java.nio.file.Files.*
 import java.nio.file.Path
+import java.nio.file.StandardOpenOption
 import java.nio.file.StandardOpenOption.APPEND
+import java.nio.file.StandardOpenOption.CREATE
 import kotlin.streams.asSequence
 
 class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8): Log {
 
-    private var offset = size(path)
+    var len = if (exists(path)) size(path) else 0L
 
     override fun append(line: String): Long {
 
-        val offset = this.offset
-        write(path, listOf(line), charset, APPEND)
-        this.offset += line.byteLength()
+        val offset = len
+        write(path, listOf(line), charset, CREATE, APPEND)
+        len += line.byteLength()
 
         return offset
     }
@@ -27,12 +30,12 @@ class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8
             return listOf()
         }
 
-        val offsets = lines.runningFold(offset, { acc, line ->
+        val offsets = lines.runningFold(len, { acc, line ->
             acc + line.byteLength()
         })
-        write(path, lines, charset, APPEND)
+        write(path, lines, charset, CREATE, APPEND)
 
-        offset = offsets.last()
+        len = offsets.last()
 
         return listOf(0L) + offsets.subList(0, offsets.size - 1)
     }

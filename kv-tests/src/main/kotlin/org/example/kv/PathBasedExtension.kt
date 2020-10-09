@@ -1,12 +1,13 @@
 package org.example.kv
 
+import org.apache.commons.io.FileUtils.deleteDirectory
 import org.junit.jupiter.api.extension.*
 import java.nio.file.Files
-import java.nio.file.Files.deleteIfExists
+import java.nio.file.Files.*
 import java.nio.file.Path
 
-abstract class PathBasedExtension<T>(private val clazz: Class<T>): ParameterResolver, BeforeEachCallback,
-        AfterEachCallback {
+abstract class PathBasedExtension<T>(private val clazz: Class<T>, private val isFile: Boolean = true):
+        ParameterResolver, BeforeEachCallback, AfterEachCallback {
 
     private val paths: MutableMap<String, Path> = mutableMapOf()
 
@@ -20,12 +21,14 @@ abstract class PathBasedExtension<T>(private val clazz: Class<T>): ParameterReso
 
     override fun beforeEach(context: ExtensionContext?) {
 
-        paths[context!!.tempFileName()] = Files.createTempFile("text-kv-", ".txt")
+        paths[context!!.tempFileName()] = if(isFile) createTempFile("file-kv-", ".txt")
+        else createTempDirectory("dir-kv-")
     }
 
     override fun afterEach(context: ExtensionContext?) {
 
-        paths.remove(context!!.tempFileName())?.let { deleteIfExists(it) }
+        paths.remove(context!!.tempFileName())
+                ?.let { if (isDirectory(it)) deleteDirectory(it.toFile()) else deleteIfExists(it) }
     }
 
     private fun ExtensionContext.tempFileName(): String = this.displayName ?: "no-name"
