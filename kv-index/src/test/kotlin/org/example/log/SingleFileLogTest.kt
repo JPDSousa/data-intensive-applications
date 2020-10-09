@@ -5,12 +5,6 @@ import org.example.kv.PathBasedExtension
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.Path
 
-/**
- *
- *
- * @author Joao Sousa (joao.sousa@feedzai.com)
- * @since @@@feedzai.next.release@@@
- */
 @ExtendWith(SingleFileLogExtension::class)
 internal class SingleFileLogTest: LogTest
 

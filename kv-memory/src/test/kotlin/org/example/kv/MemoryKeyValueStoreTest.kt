@@ -5,12 +5,6 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.ParameterContext
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver
 
-/**
- *
- *
- * @author Joao Sousa (joao.sousa@feedzai.com)
- * @since @@@feedzai.next.release@@@
- */
 @ExtendWith(MemoryKeyValueExtension::class)
 internal class MemoryKeyValueStoreTest: KeyValueStoreTest
 

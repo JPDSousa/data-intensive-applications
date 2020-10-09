@@ -4,12 +4,6 @@ import org.example.log.SingleFileLog
 import org.junit.jupiter.api.extension.*
 import java.nio.file.Path
 
-/**
- *
- *
- * @author Joao Sousa (joao.sousa@feedzai.com)
- * @since @@@feedzai.next.release@@@
- */
 @ExtendWith(HashIndexKeyValueExtension::class)
 internal class HashIndexKeyValueStoreTest: KeyValueStoreTest
 
