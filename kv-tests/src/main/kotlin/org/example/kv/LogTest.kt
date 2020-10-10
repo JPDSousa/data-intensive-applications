@@ -28,4 +28,16 @@ interface LogTest {
         assertTrue(log.lines().contains(expected))
     }
 
+    @Test fun `entries should be partitioned by lines`(log: Log) {
+
+        val entries = (1..100).map { "entryentryentry$it" }
+        val expected = entries.joinToString("\n")
+
+        entries.forEach { log.append(it) }
+
+        val content = log.lines().joinToString("\n")
+
+        assertEquals(expected, content)
+    }
+
 }

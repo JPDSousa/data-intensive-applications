@@ -1,6 +1,7 @@
 package org.example.log
 
 import java.nio.file.Path
+import java.util.*
 
 class SegmentedLog(path: Path,
                    // 1 MB
@@ -8,6 +9,7 @@ class SegmentedLog(path: Path,
 
     private val factory = SegmentFactory(path)
     private val segments = mutableListOf(factory.createSegment())
+    private var closedOffset = 0L
 
     private fun openSegment(): Log {
 
@@ -15,6 +17,7 @@ class SegmentedLog(path: Path,
 
         if (lastSegment.len >= segmentSize) {
             // TODO add log
+            closedOffset += lastSegment.len
             val openSegment = factory.createSegment()
             segments.add(openSegment)
             return openSegment
@@ -23,32 +26,52 @@ class SegmentedLog(path: Path,
         return lastSegment
     }
 
-    private fun segmentOf(offset: Long): Pair<Log, Long>? {
+    private fun segmentsFrom(offset: Long): List<Log> {
 
         var remaining = offset
-        for (segment in segments) {
-            if (remaining <= segment.len) {
-                return Pair(segment, remaining)
+        val segments = LinkedList<Log>()
+
+        for (segment in this.segments) {
+            if (remaining <= 0L) {
+                segments.add(segment)
+            } else if (remaining < segment.len) {
+                segments.add(SubSegmentLog(remaining, segment))
             }
+            // if remaining is bigger then len then we don't want this segment
             remaining -= segment.len
         }
-        return null
+        return segments
     }
 
-    override fun append(line: String): Long = openSegment().append(line)
+    override fun append(line: String): Long {
+        val openSegment = openSegment()
+        // openSegment() must be called before closedOffset, as that method updates the variable
+        return closedOffset + openSegment.append(line)
+    }
 
-    override fun appendAll(lines: List<String>): List<Long> = openSegment().appendAll(lines)
+    override fun appendAll(lines: List<String>): List<Long> = lines.map { append(it) }
 
-    override fun lines(offset: Long): Sequence<String> = segmentOf(offset)
-            ?.let { it.first.lines(it.second) }
-            ?: sequenceOf()
+    override fun lines(offset: Long): Sequence<String> = segmentsFrom(offset)
+            .flatMap { it.lines() }
+            .asSequence()
 
-    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>> = segmentOf(offset)
-            ?.let { it.first.linesWithOffset(it.second) }
-            ?: sequenceOf()
+    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>> = segmentsFrom(offset)
+            .flatMap { it.linesWithOffset() }
+            .asSequence()
 }
 
 private class SegmentFactory(private val path: Path, private var segmentCounter: Int = 0) {
 
     fun createSegment() = SingleFileLog(path.resolve("segment_${segmentCounter++}"))
+}
+
+private class SubSegmentLog(private val offset: Long, private val log: Log): Log {
+
+    override fun append(line: String): Long = log.append(line)
+
+    override fun appendAll(lines: List<String>): List<Long> = log.appendAll(lines)
+
+    override fun lines(offset: Long): Sequence<String> = lines(this.offset + offset)
+
+    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>> = linesWithOffset(this.offset + offset)
 }

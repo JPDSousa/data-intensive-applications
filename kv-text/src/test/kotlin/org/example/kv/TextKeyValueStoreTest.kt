@@ -7,7 +7,7 @@ import java.nio.file.Path
 @ExtendWith(TextKeyValueExtension::class)
 class TextKeyValueStoreTest: KeyValueStoreTest
 
-internal class TextKeyValueExtension: PathBasedExtension<KeyValueStore>(KeyValueStore::class.java) {
+internal class TextKeyValueExtension: PathParameterResolverExtension<KeyValueStore>(KeyValueStore::class.java) {
 
     override fun createParameter(path: Path): KeyValueStore
             = TextKeyValueStore(SingleFileLog(path))
