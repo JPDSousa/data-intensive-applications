@@ -24,18 +24,11 @@ abstract class PathStoreExtension(private val isFile: Boolean = true): BeforeEac
         context?.getStore()?.removePath(context)
     }
 
-    internal fun ExtensionContext.getStore() = this.getStore(ExtensionContext.Namespace.GLOBAL)
-
     private fun ExtensionContext.Store.putPath(context: ExtensionContext, path: Path)
             = put(context.tempFileName(), path)
 
-    internal fun ExtensionContext.Store.getPath(context: ExtensionContext)
-            = this[context.tempFileName(), Path::class.java]!!
-
     private fun ExtensionContext.Store.removePath(context: ExtensionContext)
             = this.remove(context.tempFileName(), Path::class.java)?.deleteIfExists()
-
-    private fun ExtensionContext.tempFileName(): String = this.displayName ?: "no-name"
 
     private fun Path.deleteIfExists() {
         if (Files.isDirectory(this)) {
@@ -45,3 +38,10 @@ abstract class PathStoreExtension(private val isFile: Boolean = true): BeforeEac
         }
     }
 }
+
+fun ExtensionContext.getStore() = this.getStore(ExtensionContext.Namespace.GLOBAL)
+
+fun ExtensionContext.Store.getPath(context: ExtensionContext)
+        = this[context.tempFileName(), Path::class.java]!!
+
+private fun ExtensionContext.tempFileName(): String = this.displayName ?: "no-name"
