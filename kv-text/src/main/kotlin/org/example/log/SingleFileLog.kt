@@ -46,14 +46,25 @@ class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8
             return lines(path, charset).asSequence()
         }
 
+        if(notExists(path)) {
+            return emptySequence()
+        }
+
         return path.randomAccessReadOnly()
                 .apply { seek(offset) }
                 .generateSequence()
     }
 
-    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>> = path.randomAccessReadOnly()
-            .apply { seek(offset) }
-            .generateSequenceWithOffset()
+    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>> {
+
+        if(notExists(path)) {
+            return emptySequence()
+        }
+
+        return path.randomAccessReadOnly()
+                .apply { seek(offset) }
+                .generateSequenceWithOffset()
+    }
 
     private fun RandomAccessFile.generateSequence() = generateSequence {
         val line = readLine()

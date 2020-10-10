@@ -71,7 +71,8 @@ private class SubSegmentLog(private val offset: Long, private val log: Log): Log
 
     override fun appendAll(lines: List<String>): List<Long> = log.appendAll(lines)
 
-    override fun lines(offset: Long): Sequence<String> = lines(this.offset + offset)
+    override fun lines(offset: Long): Sequence<String> = log.lines(this.offset + offset)
 
-    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>> = linesWithOffset(this.offset + offset)
+    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>> = log.linesWithOffset(this.offset +
+            offset)
 }
