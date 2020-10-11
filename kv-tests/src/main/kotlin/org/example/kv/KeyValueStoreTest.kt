@@ -1,45 +1,58 @@
 package org.example.kv
 
+import org.example.TestInstance
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.function.Executable
+import kotlin.streams.asStream
 
 interface KeyValueStoreTest {
 
-    @Test fun `absent key`(kv: KeyValueStore) {
+    fun instances(): Sequence<TestInstance<KeyValueStore>>
+    
+    @TestFactory fun `absent key`() = instances().map { 
+        dynamicTest(it.name) {
+            assertNull(it.instance.get("absent"))
+        }
+    }.asStream()
 
-        assertNull(kv.get("absent"))
-    }
+    @TestFactory fun `written value should be readable`() = instances().map {
+        dynamicTest(it.name) {
+            val kv = it.instance
+            val key = "key"
+            val expected = "value"
 
-    @Test fun `written value should be readable`(kv: KeyValueStore) {
+            kv.put(key, expected)
+            assertEquals(expected, kv.get(key))
+        }
+    }.asStream()
 
-        val key = "key"
-        val expected = "value"
+    @TestFactory fun `multiple keys are isolated`() = instances().map {
+        dynamicTest(it.name) {
+            val kv = it.instance
+            val entries = (0..5).associate { Pair("key$it", "value$it") }
 
-        kv.put(key, expected)
-        assertEquals(expected, kv.get(key))
-    }
+            kv.putAll(entries)
 
-    @Test fun `multiple keys are isolated`(kv: KeyValueStore) {
+            assertAll(entries.map { GetAssertion(kv, it.key, it.value) })
+        }
+    }.asStream()
 
-        val entries = (0..5).associate { Pair("key$it", "value$it") }
+    @TestFactory fun `key update`() = instances().map {
+        dynamicTest(it.name) {
 
-        kv.putAll(entries)
+            val kv = it.instance
+            val key = "key"
+            val old = "value"
+            val new = "value1"
 
-        assertAll(entries.map { GetAssertion(kv, it.key, it.value) })
-    }
+            kv.put(key, old)
+            kv.put(key, new)
 
-    @Test fun `key update`(kv: KeyValueStore) {
-
-        val key = "key"
-        val old = "value"
-        val new = "value1"
-
-        kv.put(key, old)
-        kv.put(key, new)
-
-        assertEquals(new, kv.get(key))
-    }
+            assertEquals(new, kv.get(key))
+        }
+    }.asStream()
 
 }
 

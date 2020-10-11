@@ -1,4 +1,4 @@
-package org.example.kv
+package org.example
 
 import org.apache.commons.io.FileUtils
 import org.junit.jupiter.api.extension.AfterEachCallback
@@ -7,21 +7,20 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import java.nio.file.Files
 import java.nio.file.Path
 
-abstract class PathStoreExtension(private val isFile: Boolean = true): BeforeEachCallback, AfterEachCallback {
+interface PathStoreExtension: BeforeEachCallback, AfterEachCallback {
+
+    fun ExtensionContext.getPathStore(): ExtensionContext.Store
+            = this.getStore(ExtensionContext.Namespace.create(javaClass))
 
     override fun beforeEach(context: ExtensionContext?) {
 
-        val path = when {
-            isFile -> Files.createTempFile("file-kv-", ".txt")
-            else -> Files.createTempDirectory("dir-kv-")
-        }
-
-        context!!.getStore().putPath(context, path)
+        val path = Files.createTempDirectory(context!!.displayName)
+        context.getPathStore().putPath(context, path)
     }
 
     override fun afterEach(context: ExtensionContext?) {
 
-        context?.getStore()?.removePath(context)
+        context?.getPathStore()?.removePath(context)
     }
 
     private fun ExtensionContext.Store.putPath(context: ExtensionContext, path: Path)
@@ -38,8 +37,6 @@ abstract class PathStoreExtension(private val isFile: Boolean = true): BeforeEac
         }
     }
 }
-
-fun ExtensionContext.getStore() = this.getStore(ExtensionContext.Namespace.GLOBAL)
 
 fun ExtensionContext.Store.getPath(context: ExtensionContext)
         = this[context.tempFileName(), Path::class.java]!!

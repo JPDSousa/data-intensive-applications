@@ -1,14 +1,24 @@
 package org.example.kv
 
-import org.example.log.SingleFileLog
-import org.junit.jupiter.api.extension.ExtendWith
-import java.nio.file.Path
+import org.example.TestInstance
+import org.example.log.TextLogs
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 
-@ExtendWith(TextKeyValueExtension::class)
-class TextKeyValueStoreTest: KeyValueStoreTest
+class TextKeyValueStoreTest: KeyValueStoreTest {
 
-internal class TextKeyValueExtension: PathParameterResolverExtension<KeyValueStore>(KeyValueStore::class.java) {
+    private var logs : TextLogs? = null
 
-    override fun createParameter(path: Path): KeyValueStore
-            = TextKeyValueStore(SingleFileLog(path))
+    @BeforeEach fun createFiles() {
+        logs = TextLogs()
+    }
+
+    override fun instances() = logs!!.instances().map {
+        TestInstance("Text KV - ${it.name}", TextKeyValueStore(it.instance) as KeyValueStore)
+    }
+
+    @AfterEach fun deleteFiles() {
+        logs!!.close()
+    }
 }
+

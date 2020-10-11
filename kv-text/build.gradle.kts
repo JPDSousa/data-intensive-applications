@@ -10,7 +10,8 @@ repositories {
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation(project(":kv-api"))
-    testImplementation(project(":kv-tests"))
+    implementation(project(":kv-tests"))
+    implementation("commons-io:commons-io:2.8.0")
     testImplementation(platform("org.junit:junit-bom:5.7.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }

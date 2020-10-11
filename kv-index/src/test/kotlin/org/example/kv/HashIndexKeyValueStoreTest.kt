@@ -1,19 +1,31 @@
 package org.example.kv
 
-import org.example.log.SegmentedLog
-import org.example.log.SingleFileLog
-import org.junit.jupiter.api.extension.*
-import java.nio.file.Path
+import org.example.TestInstance
+import org.example.log.TextLogs
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 
-@ExtendWith(HashIndexKeyValueExtension::class)
-internal class HashIndexKeyValueStoreTest: KeyValueStoreTest
+internal class HashIndexKeyValueStoreTest: KeyValueStoreTest {
 
-internal class HashIndexKeyValueExtension: PathParameterResolverExtension<KeyValueStore>(KeyValueStore::class.java,
-        false) {
+    private var logs : TextLogs? = null
 
-    override fun createParameter(path: Path): KeyValueStore
-            = HashIndexKeyValueStore(TextKeyValueStore(SegmentedLog(path)))
+    @BeforeEach
+    fun createFiles() {
+        logs = TextLogs()
+    }
 
+    override fun instances(): Sequence<TestInstance<KeyValueStore>> {
+
+        return logs!!.instances().map {
+            TestInstance("Text KV - ${it.name}", TextKeyValueStore(it.instance) as SeekableKeyValueStore)
+        }.map {
+            TestInstance("Index - ${it.name}", HashIndexKeyValueStore(it.instance) as KeyValueStore)
+        }
+    }
+
+    @AfterEach fun deleteFiles() {
+        logs!!.close()
+    }
 }
 
 

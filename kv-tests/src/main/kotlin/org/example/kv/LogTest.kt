@@ -1,43 +1,58 @@
 package org.example.kv
 
+import org.example.CustomParameterizedExtension
+import org.example.TestInstance
 import org.example.log.Log
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
+import kotlin.streams.asStream
 
 interface LogTest {
 
-    @Test fun `append on empty file should return 0`(log: Log) {
+    fun instances(): Sequence<TestInstance<Log>>
 
-        assertEquals(0, log.append("oneline"))
-    }
+    @TestFactory fun `append on empty file should return 0`() = instances().map {
+        dynamicTest(it.name) {
+            assertEquals(0, it.instance.append("oneline"))
+        }
+    }.asStream()
 
-    @Test fun `append should sum offset`(log: Log) {
+    @TestFactory fun `append should sum offset`() = instances().map {
+        dynamicTest(it.name) {
+            val log = it.instance
+            val firstOffset = log.append("oneline")
+            val secondOffset = log.append("twoline")
 
-        val firstOffset = log.append("oneline")
-        val secondOffset = log.append("twoline")
+            assertTrue(firstOffset < secondOffset)
+        }
+    }.asStream()
 
-        assertTrue(firstOffset < secondOffset)
-    }
+    @TestFactory fun `append should be readable`() = instances().map {
+        dynamicTest(it.name) {
+            val log = it.instance
+            val expected = "oneline"
+            log.append(expected)
 
-    @Test fun `append should be readable`(log: Log) {
+            assertTrue(log.lines().contains(expected))
+        }
+    }.asStream()
 
-        val expected = "oneline"
-        log.append(expected)
+    @TestFactory fun `entries should be partitioned by lines`() = instances().map {
+        dynamicTest(it.name) {
+            val log = it.instance
+            val entries = (1..100).map { "entryentryentry$it" }
+            val expected = entries.joinToString("\n")
 
-        assertTrue(log.lines().contains(expected))
-    }
+            entries.forEach { log.append(it) }
 
-    @Test fun `entries should be partitioned by lines`(log: Log) {
+            val content = log.lines().joinToString("\n")
 
-        val entries = (1..100).map { "entryentryentry$it" }
-        val expected = entries.joinToString("\n")
-
-        entries.forEach { log.append(it) }
-
-        val content = log.lines().joinToString("\n")
-
-        assertEquals(expected, content)
-    }
+            assertEquals(expected, content)
+        }
+    }.asStream()
 
 }

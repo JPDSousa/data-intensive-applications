@@ -42,12 +42,12 @@ class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8
 
     override fun lines(offset: Long): Sequence<String> {
 
-        if (offset == 0L) {
-            return lines(path, charset).asSequence()
-        }
-
         if(notExists(path)) {
             return emptySequence()
+        }
+
+        if (offset == 0L) {
+            return lines(path, charset).asSequence()
         }
 
         return path.randomAccessReadOnly()
