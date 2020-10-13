@@ -1,14 +1,19 @@
 package org.example.log
 
-import java.nio.file.Files
+import java.nio.file.Files.createFile
 import java.nio.file.Path
 import java.util.Collections.binarySearch
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 import kotlin.math.abs
 
-internal class Segments(path: Path, private val segmentSize: Long): Iterable<SingleFileLog> {
+internal class Segments(path: Path, private val segmentSize: Long) {
 
     private val factory = SegmentFactory(path)
 
+    private val lock = ReentrantReadWriteLock()
     private var offsets = mutableListOf(0L)
     private var segments = mutableListOf(factory.createSegment())
 
@@ -18,46 +23,59 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Sin
             return segments
         }
 
-        val binarySearch = binarySearch(offsets, offset)
-        val targetIndex = if (binarySearch < 0) abs(binarySearch) - 2 else binarySearch
+        return lock.read {
+            val binarySearch = binarySearch(offsets, offset)
+            val targetIndex = if (binarySearch < 0) abs(binarySearch) - 2 else binarySearch
 
-        val targetOffset = offsets[targetIndex]
-        if (targetOffset == offset) {
-            return segments.subList(targetIndex, segments.size)
+            val targetOffset = offsets[targetIndex]
+            if (targetOffset == offset) {
+                return segments.subList(targetIndex, segments.size)
+            }
+            val subSegment = SubSegmentLog(offset - targetOffset, segments[targetIndex])
+
+            if (targetIndex == segments.size - 1) {
+                return@read listOf(subSegment)
+            }
+
+            return@read listOf(subSegment) + segments.subList(targetIndex + 1, segments.size)
         }
-        val subSegment = SubSegmentLog(offset - targetOffset, segments[targetIndex])
-
-        if (targetIndex == segments.size - 1) {
-            return listOf(subSegment)
-        }
-
-        return listOf(subSegment) + segments.subList(targetIndex + 1, segments.size)
     }
 
-    fun closedOffset() = offsets.last()
+    private fun closedSegments() = lock.read { segments.subList(0, segments.size - 1) }
+
+    fun closedOffset() = lock.read { offsets.last() }
 
     fun openSegment(): Log {
 
-        val lastSegment = segments.last()
+        val lastSegment = lock.read { segments.last() }
 
         if (lastSegment.len >= segmentSize) {
-            // TODO add log
-            offsets.add(offsets.last() + lastSegment.len)
-            val openSegment = factory.createSegment()
-            segments.add(openSegment)
-            return openSegment
+            return lock.write {
+                val actualLastSegment = segments.last()
+
+                // now that we're inside an exclusive lock, we need to check again if we still need to open a new
+                // segment
+                if (actualLastSegment.len >= segmentSize) {
+                    // TODO add log
+                    offsets.add(closedOffset() + actualLastSegment.len)
+                    val openSegment = factory.createSegment()
+                    segments.add(openSegment)
+                    return@write openSegment
+                }
+                return@write actualLastSegment
+            }
+
         }
         // TODO add log
         return lastSegment
     }
 
-    override fun iterator() = segments.iterator()
-
     fun <K> compact(selector: (String) -> K) {
 
-        val segmentsToCompact = segments.subList(0, segments.size - 1)
-        val compactedSegments = mutableListOf<SingleFileLog>()
-        val newOffsets = mutableListOf(0L)
+        val segmentsToCompact = closedSegments()
+        val compactedSegments = ArrayList<SingleFileLog>(segmentsToCompact.size)
+        val newOffsets = ArrayList<Long>(segmentsToCompact.size)
+        newOffsets.add(0L)
 
         for (segment in segmentsToCompact) {
             val compactedSegment = factory.createSegment()
@@ -69,16 +87,20 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Sin
             }
             compactedSegments.add(compactedSegment)
         }
-        compactedSegments.addAll(segments.subList(compactedSegments.size, segments.size))
-        segments = compactedSegments
-        offsets = newOffsets
+        lock.write {
+            compactedSegments.addAll(segments.subList(compactedSegments.size, segments.size))
+            segments = compactedSegments
+            newOffsets.addAll(offsets.subList(newOffsets.size, offsets.size))
+            offsets = newOffsets
+        }
     }
 }
 
-private class SegmentFactory(private val path: Path, private var segmentCounter: Int = 0) {
+// Thread safe
+private class SegmentFactory(private val path: Path, private var segmentCounter: AtomicInteger = AtomicInteger(0)) {
 
-    fun createSegment() = path.resolve("segment_${segmentCounter++}")
-            .also { Files.createFile(it) }
+    fun createSegment() = path.resolve("segment_${segmentCounter.getAndIncrement()}")
+            .also { createFile(it) }
             .let { SingleFileLog(it) }
 }
 
