@@ -2,7 +2,7 @@ package org.example.log
 
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
+import java.util.Collections.binarySearch
 import kotlin.math.abs
 
 internal class Segments(path: Path, private val segmentSize: Long): Iterable<SingleFileLog> {
@@ -18,7 +18,7 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Sin
             return segments
         }
 
-        val binarySearch = Collections.binarySearch(offsets, offset)
+        val binarySearch = binarySearch(offsets, offset)
         val targetIndex = if (binarySearch < 0) abs(binarySearch) - 2 else binarySearch
 
         val targetOffset = offsets[targetIndex]
@@ -57,12 +57,16 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Sin
 
         val segmentsToCompact = segments.subList(0, segments.size - 1)
         val compactedSegments = mutableListOf<SingleFileLog>()
+        val newOffsets = mutableListOf(0L)
 
         for (segment in segmentsToCompact) {
             val compactedSegment = factory.createSegment()
             segment.lines()
                     .distinctBy(selector)
                     .forEach { compactedSegment.append(it) }
+            if (compactedSegments.isNotEmpty()) {
+                newOffsets.add(newOffsets.last() + compactedSegments.last().len)
+            }
             compactedSegments.add(compactedSegment)
         }
         compactedSegments.addAll(segments.subList(compactedSegments.size, segments.size))
@@ -85,6 +89,6 @@ private class SubSegmentLog(private val offset: Long, private val log: Log): Log
 
     override fun lines(offset: Long): Sequence<String> = log.lines(this.offset + offset)
 
-    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>> = log.linesWithOffset(this.offset +
-            offset)
+    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>>
+            = log.linesWithOffset(this.offset + offset)
 }

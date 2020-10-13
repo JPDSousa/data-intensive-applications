@@ -23,4 +23,5 @@ class SegmentedLog(path: Path,
     override fun linesWithOffset(offset: Long) = segments.from(offset)
             .flatMap { it.linesWithOffset() }
             .asSequence()
+
 }
