@@ -23,7 +23,7 @@ internal class SegmentsTest {
 
         values.forEach { segments!!.openSegment().append(it) }
         segments!!.compact { it }
-        val actual = segments!!.from(0)
+        segments!!.from(0)
                 .flatMap { it.lines(0) }
                 .forEach { remaining.remove(it) }
 

@@ -9,7 +9,7 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Sin
 
     private val factory = SegmentFactory(path)
 
-    private val offsets = mutableListOf(0L)
+    private var offsets = mutableListOf(0L)
     private var segments = mutableListOf(factory.createSegment())
 
     fun from(offset: Long): List<Log> {
@@ -71,6 +71,7 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Sin
         }
         compactedSegments.addAll(segments.subList(compactedSegments.size, segments.size))
         segments = compactedSegments
+        offsets = newOffsets
     }
 }
 
