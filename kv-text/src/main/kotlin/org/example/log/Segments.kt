@@ -1,6 +1,8 @@
 package org.example.log
 
 import mu.KotlinLogging
+import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files.createFile
 import java.nio.file.Path
 import java.util.Collections.binarySearch
@@ -82,20 +84,30 @@ internal class Segments(path: Path, private val segmentSize: Long) {
         newOffsets.add(0L)
 
         for (segment in segmentsToCompact) {
-            val compactedSegment = factory.createSegment()
-            val compactedContent = mutableMapOf<K, String>()
+            val memorySegment = CompactedSegment(factory, selector, segmentSize)
 
             segment.useLines { sequence ->
-                sequence.forEach {
-                    compactedContent[selector(it)] = it
+                sequence.forEach { newValue ->
+                    memorySegment.upsert(newValue)
+                    if (memorySegment.isFull()) {
+                        val compactedSegment = memorySegment.flush()
+
+                        if (compactedSegments.isNotEmpty()) {
+                            newOffsets.add(newOffsets.last() + compactedSegments.last().len)
+                        }
+                        compactedSegments.add(compactedSegment)
+                    }
                 }
             }
-            compactedSegment.appendAll(compactedContent.values)
+            if (memorySegment.isNotEmpty()) {
+                // TODO copy paste from above
+                val compactedSegment = memorySegment.flush()
 
-            if (compactedSegments.isNotEmpty()) {
-                newOffsets.add(newOffsets.last() + compactedSegments.last().len)
+                if (compactedSegments.isNotEmpty()) {
+                    newOffsets.add(newOffsets.last() + compactedSegments.last().len)
+                }
+                compactedSegments.add(compactedSegment)
             }
-            compactedSegments.add(compactedSegment)
         }
         lock.write {
             compactedSegments.addAll(segments.subList(compactedSegments.size, segments.size))
@@ -107,11 +119,13 @@ internal class Segments(path: Path, private val segmentSize: Long) {
 }
 
 // Thread safe
-private class SegmentFactory(private val path: Path, private var segmentCounter: AtomicInteger = AtomicInteger(0)) {
+private class SegmentFactory(private val path: Path,
+                             val charset: Charset = UTF_8,
+                             private var segmentCounter: AtomicInteger = AtomicInteger(0)) {
 
     fun createSegment() = path.resolve("segment_${segmentCounter.getAndIncrement()}")
             .also { createFile(it) }
-            .let { SingleFileLog(it) }
+            .let { SingleFileLog(it, charset) }
 }
 
 private class SubSegmentLog(private val offset: Long, private val log: Log): Log {
@@ -125,5 +139,39 @@ private class SubSegmentLog(private val offset: Long, private val log: Log): Log
 
     override fun <T> useLinesWithOffset(offset: Long, block: (Sequence<LineWithOffset>) -> T): T
             = log.useLinesWithOffset(this.offset + offset, block)
+
+}
+
+private class CompactedSegment<K>(private val factory: SegmentFactory,
+                                  private val selector: (String) -> K,
+                                  private val limit: Long) {
+
+    private val compactedContent = mutableMapOf<K, String>()
+    private var size = 0L
+
+    fun upsert(newValue: String) {
+        compactedContent.compute(selector(newValue)) { _, oldValue ->
+            if (oldValue != null) {
+                size -= (oldValue.byteLength() - newValue.byteLength())
+            }
+            return@compute newValue
+        }
+    }
+
+    fun flush(): SingleFileLog {
+        val compacted = factory.createSegment()
+
+        compacted.appendAll(compactedContent.values)
+        compactedContent.clear()
+        size = 0L
+
+        return compacted
+    }
+
+    private fun String.byteLength() = this.toByteArray(factory.charset).size
+
+    fun isFull() = size >= limit
+
+    fun isNotEmpty() = size > 0
 
 }
