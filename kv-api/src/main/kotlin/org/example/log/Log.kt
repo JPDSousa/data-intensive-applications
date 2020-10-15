@@ -4,10 +4,12 @@ interface Log {
 
     fun append(line: String): Long
 
-    fun appendAll(lines: List<String>): List<Long>
+    fun appendAll(lines: Collection<String>): Collection<Long>
 
-    fun lines(offset: Long = 0): Sequence<String>
+    fun <T> useLines(offset: Long = 0, block: (Sequence<String>) -> T): T
 
-    fun linesWithOffset(offset: Long = 0): Sequence<Pair<Long, String>>
+    fun <T> useLinesWithOffset(offset: Long = 0, block: (Sequence<LineWithOffset>) -> T): T
 
 }
+
+data class LineWithOffset(val offset: Long, val line: String)

@@ -1,7 +1,9 @@
 package org.example.log
 
-import org.junit.jupiter.api.*
+import org.apache.commons.math3.distribution.ParetoDistribution
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.random.Random
@@ -18,14 +20,21 @@ internal class SegmentsTest {
     @Test
     fun `compact should maintain consistency`() {
 
-        val values = (1..300).map { "${it % 100}" }.shuffled(random)
+        val distribution = ParetoDistribution()
+        val values = (1..300).map { distribution.sample() }.map { "$it" }.shuffled(random)
         val remaining = values.distinct().toMutableList()
 
         values.forEach { segments!!.openSegment().append(it) }
+
         segments!!.compact { it }
-        segments!!.from(0)
-                .flatMap { it.lines(0) }
-                .forEach { remaining.remove(it) }
+
+        segments!!.from(0).forEach { log ->
+            log.useLines { sequence ->
+                sequence.forEach {
+                    remaining.remove(it)
+                }
+            }
+        }
 
         assertTrue(remaining.isEmpty())
     }

@@ -1,5 +1,6 @@
 package org.example.log
 
+import mu.KotlinLogging
 import java.nio.file.Files.createFile
 import java.nio.file.Path
 import java.util.Collections.binarySearch
@@ -10,6 +11,8 @@ import kotlin.concurrent.write
 import kotlin.math.abs
 
 internal class Segments(path: Path, private val segmentSize: Long) {
+
+    private val logger = KotlinLogging.logger {}
 
     private val factory = SegmentFactory(path)
 
@@ -29,7 +32,7 @@ internal class Segments(path: Path, private val segmentSize: Long) {
 
             val targetOffset = offsets[targetIndex]
             if (targetOffset == offset) {
-                return segments.subList(targetIndex, segments.size)
+                return@read segments.subList(targetIndex, segments.size)
             }
             val subSegment = SubSegmentLog(offset - targetOffset, segments[targetIndex])
 
@@ -37,11 +40,11 @@ internal class Segments(path: Path, private val segmentSize: Long) {
                 return@read listOf(subSegment)
             }
 
-            return@read listOf(subSegment) + segments.subList(targetIndex + 1, segments.size)
+            return@read (listOf(subSegment) + segments.subList(targetIndex + 1, segments.size))
         }
     }
 
-    private fun closedSegments() = lock.read { segments.subList(0, segments.size - 1) }
+    private fun closedSegments() = lock.read { ArrayList(segments.subList(0, segments.size - 1)) }
 
     fun closedOffset() = lock.read { offsets.last() }
 
@@ -72,6 +75,7 @@ internal class Segments(path: Path, private val segmentSize: Long) {
 
     fun <K> compact(selector: (String) -> K) {
 
+        logger.error { "Triggering a compact operation" }
         val segmentsToCompact = closedSegments()
         val compactedSegments = ArrayList<SingleFileLog>(segmentsToCompact.size)
         val newOffsets = ArrayList<Long>(segmentsToCompact.size)
@@ -79,9 +83,15 @@ internal class Segments(path: Path, private val segmentSize: Long) {
 
         for (segment in segmentsToCompact) {
             val compactedSegment = factory.createSegment()
-            segment.lines()
-                    .distinctBy(selector)
-                    .forEach { compactedSegment.append(it) }
+            val compactedContent = mutableMapOf<K, String>()
+
+            segment.useLines { sequence ->
+                sequence.forEach {
+                    compactedContent[selector(it)] = it
+                }
+            }
+            compactedSegment.appendAll(compactedContent.values)
+
             if (compactedSegments.isNotEmpty()) {
                 newOffsets.add(newOffsets.last() + compactedSegments.last().len)
             }
@@ -108,10 +118,12 @@ private class SubSegmentLog(private val offset: Long, private val log: Log): Log
 
     override fun append(line: String): Long = log.append(line)
 
-    override fun appendAll(lines: List<String>): List<Long> = log.appendAll(lines)
+    override fun appendAll(lines: Collection<String>): Collection<Long> = log.appendAll(lines)
 
-    override fun lines(offset: Long): Sequence<String> = log.lines(this.offset + offset)
+    override fun <T> useLines(offset: Long, block: (Sequence<String>) -> T): T
+            = log.useLines(this.offset + offset, block)
 
-    override fun linesWithOffset(offset: Long): Sequence<Pair<Long, String>>
-            = log.linesWithOffset(this.offset + offset)
+    override fun <T> useLinesWithOffset(offset: Long, block: (Sequence<LineWithOffset>) -> T): T
+            = log.useLinesWithOffset(this.offset + offset, block)
+
 }

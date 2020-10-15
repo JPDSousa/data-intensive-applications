@@ -11,9 +11,9 @@ class TextLogs: Closeable {
     private val singlePath = Files.createTempFile("single-", ".log")
     private val segmentedLogs = SegmentedLogs()
 
-    fun instances(): Sequence<TestInstance<Log>> = sequenceOf(
+    fun instances(selector: (String) -> String): Sequence<TestInstance<Log>> = sequenceOf(
             TestInstance("Single File Log", SingleFileLog(singlePath) as Log),
-    ) + segmentedLogs.instances().map { TestInstance(it.name, it.instance as Log) }
+    ) + segmentedLogs.instances(selector).map { TestInstance(it.name, it.instance as Log) }
 
     override fun close() {
         singlePath.deleteIfExists()
@@ -26,9 +26,9 @@ class SegmentedLogs: Closeable {
     private val segmentedPath = Files.createTempDirectory("seg-")
     private val smallSegmentedPath = Files.createTempDirectory("seg-small-")
 
-    fun instances() = sequenceOf(
-            TestInstance("Segmented Log", SegmentedLog(segmentedPath)),
-            TestInstance("Small Segmented Log", SegmentedLog(smallSegmentedPath, 5))
+    fun instances(selector: (String) -> String) = sequenceOf(
+            TestInstance("Segmented Log", SegmentedLog(segmentedPath, selector = selector)),
+            TestInstance("Small Segmented Log", SegmentedLog(smallSegmentedPath, 5, selector))
     )
 
     override fun close() {

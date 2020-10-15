@@ -16,7 +16,7 @@ internal class HashIndexKeyValueStoreTest: KeyValueStoreTest {
 
     override fun instances(): Sequence<TestInstance<KeyValueStore>> {
 
-        return logs!!.instances().map {
+        return logs!!.instances { TextKeyValueStore.kvLine.split(it, 2)[0] }.map {
             TestInstance("Text KV - ${it.name}", TextKeyValueStore(it.instance) as SeekableKeyValueStore)
         }.map {
             TestInstance("Index - ${it.name}", HashIndexKeyValueStore(it.instance) as KeyValueStore)

@@ -1,14 +1,12 @@
 package org.example.kv
 
-import org.example.CustomParameterizedExtension
+import org.apache.commons.math3.distribution.ParetoDistribution
 import org.example.TestInstance
 import org.example.log.Log
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.TestTemplate
-import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.streams.asStream
 
 interface LogTest {
@@ -37,19 +35,23 @@ interface LogTest {
             val expected = "oneline"
             log.append(expected)
 
-            assertTrue(log.lines().contains(expected))
+            log.useLines {
+                assertTrue(it.contains(expected))
+            }
         }
     }.asStream()
 
     @TestFactory fun `entries should be partitioned by lines`() = instances().map {
         dynamicTest(it.name) {
+
+            val distribution = ParetoDistribution()
             val log = it.instance
-            val entries = (1..100).map { "entryentryentry$it" }
+            val entries = (1..100).map { distribution.sample() }.map { "entryentryentry$it" }
             val expected = entries.joinToString("\n")
 
             entries.forEach { log.append(it) }
 
-            val content = log.lines().joinToString("\n")
+            val content = log.useLines { it.joinToString("\n") }
 
             assertEquals(expected, content)
         }

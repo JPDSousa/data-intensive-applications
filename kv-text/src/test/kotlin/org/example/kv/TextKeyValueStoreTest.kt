@@ -13,7 +13,8 @@ class TextKeyValueStoreTest: KeyValueStoreTest {
         logs = TextLogs()
     }
 
-    override fun instances() = logs!!.instances().map {
+    override fun instances() = logs!!.instances { TextKeyValueStore.kvLine.split(it, 2)[0] }
+            .map {
         TestInstance("Text KV - ${it.name}", TextKeyValueStore(it.instance) as KeyValueStore)
     }
 
