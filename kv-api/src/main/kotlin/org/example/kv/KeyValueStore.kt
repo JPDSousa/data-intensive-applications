@@ -9,4 +9,6 @@ interface KeyValueStore {
     }
 
     fun get(key: String): String?
+
+    fun delete(key: String)
 }

@@ -11,4 +11,8 @@ class MemoryKeyValueStore(private val map: MutableMap<String, String> = mutableM
     }
 
     override fun get(key: String): String? = map[key]
+
+    override fun delete(key: String) {
+        map.remove(key)
+    }
 }

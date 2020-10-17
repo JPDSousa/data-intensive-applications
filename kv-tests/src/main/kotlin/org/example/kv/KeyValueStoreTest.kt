@@ -54,6 +54,19 @@ interface KeyValueStoreTest {
         }
     }.asStream()
 
+    @TestFactory fun `deleted key becomes absent`() = instances().map {
+        dynamicTest(it.name) {
+
+            val kv = it.instance
+
+            kv.put("key1", "value1")
+            kv.put("key2", "value2")
+            kv.delete("key1")
+            assertNull(kv.get("key1"))
+            assertEquals(kv.get("key2"), "value2")
+        }
+    }.asStream()
+
 }
 
 internal class GetAssertion(private val kv: KeyValueStore,

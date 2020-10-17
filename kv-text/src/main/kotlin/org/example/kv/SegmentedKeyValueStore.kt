@@ -36,12 +36,21 @@ class SegmentedKeyValueStore(path: Path,
 
     override fun get(key: String): String? {
         for (keyValueStore in kvs) {
-            val value = keyValueStore.get(key)
+            val value = keyValueStore.getWithTombstone(key)
+
+            if (value == TextKeyValueStore.tombstone) {
+                return null
+            }
+
             if (value != null) {
                 return value
             }
         }
         return null
+    }
+
+    override fun delete(key: String) {
+        this.kvs.openSegment().delete(key)
     }
 }
 

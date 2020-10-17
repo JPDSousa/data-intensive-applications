@@ -21,9 +21,13 @@ class TextKeyValueStore(val log: Log): KeyValueStore {
 
     private fun get(key: String, offset: Long): String? = log.useLines(offset) { it.findLastKey(key) }
 
-    override fun get(key: String): String? {
+    private fun getRaw(key: String, nullifyTombstone: Boolean): String? {
 
         val offset = index[key]
+
+        if (offset == tombstoneIndex) {
+            return if (nullifyTombstone) null else tombstone
+        }
 
         if (offset != null) {
             return get(key, offset)
@@ -32,6 +36,15 @@ class TextKeyValueStore(val log: Log): KeyValueStore {
         return getWithOffset(key)
                 ?.also { index[it.second] = it.first }
                 ?.second
+    }
+
+    internal fun getWithTombstone(key: String) = getRaw(key, false)
+
+    override fun get(key: String) = getRaw(key, true)
+
+    override fun delete(key: String) {
+        log.append("$key,$tombstone")
+        this.index[key] = tombstoneIndex
     }
 
     internal fun <T> useEntries(offset: Long = 0, block: (Sequence<Pair<String, String>>) -> T): T
@@ -56,6 +69,8 @@ class TextKeyValueStore(val log: Log): KeyValueStore {
 
     companion object {
         internal val kvLine = Regex(",")
+        internal val tombstone = "tombstone"
+        private val tombstoneIndex = -1L
     }
 
 }

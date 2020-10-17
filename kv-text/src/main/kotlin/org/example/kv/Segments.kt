@@ -12,7 +12,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
-internal class Segments(path: Path, private val segmentSize: Long): Iterable<KeyValueStore> {
+internal class Segments(path: Path, private val segmentSize: Long): Iterable<TextKeyValueStore> {
 
     private val logger = KotlinLogging.logger {}
 
