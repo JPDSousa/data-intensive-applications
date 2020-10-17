@@ -1,9 +1,11 @@
 package org.example.kv
 
 import mu.KotlinLogging
+import org.example.index.CheckpointableIndex
 import org.example.log.SingleFileLog
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets.UTF_8
+import java.nio.file.Files.createDirectories
 import java.nio.file.Files.createFile
 import java.nio.file.Path
 import java.util.*
@@ -118,10 +120,19 @@ private class SegmentFactory(private val path: Path,
                              val charset: Charset = UTF_8,
                              private var segmentCounter: AtomicInteger = AtomicInteger(0)) {
 
-    fun createSegment() = path.resolve("segment_${segmentCounter.getAndIncrement()}")
-            .also { createFile(it) }
-            .let { SingleFileLog(it, charset) }
-            .let { TextKeyValueStore(it) }
+    fun createSegment(): TextKeyValueStore {
+        val segmentId = segmentCounter.getAndIncrement()
+
+        val segmentDir = createDirectories(path.resolve("segment_$segmentId"))
+        val logPath = createFile(segmentDir.resolve("log"))
+
+        val log = SingleFileLog(logPath)
+
+        return TextKeyValueStore(
+                CheckpointableIndex(segmentDir, log::size),
+                log
+        )
+    }
 }
 
 private class CompactedSegment(private val factory: SegmentFactory,

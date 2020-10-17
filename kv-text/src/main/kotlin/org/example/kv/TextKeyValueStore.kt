@@ -1,14 +1,14 @@
 package org.example.kv
 
+import org.example.log.Index
 import org.example.log.LineWithOffset
 import org.example.log.Log
 
-class TextKeyValueStore(val log: Log): KeyValueStore {
-
-    private val index = mutableMapOf<String, Long>()
+class TextKeyValueStore(private val index: Index, val log: Log): KeyValueStore {
 
     override fun put(key: String, value: String) {
-        index[key] = putAndGetOffset(key, value)
+        val offset = putAndGetOffset(key, value)
+        this.index.putOffset(key, offset)
     }
 
     override fun putAll(entries: Map<String, String>) {
@@ -23,7 +23,7 @@ class TextKeyValueStore(val log: Log): KeyValueStore {
 
             val offsets = log.appendAll(content)
 
-            index.putAll(keys.zip(offsets))
+            index.putAllOffsets(keys.zip(offsets))
         }
     }
 
@@ -33,7 +33,7 @@ class TextKeyValueStore(val log: Log): KeyValueStore {
 
     private fun getRaw(key: String, nullifyTombstone: Boolean): String? {
 
-        val offset = index[key]
+        val offset = index.getOffset(key)
 
         if (offset == tombstoneIndex) {
             return if (nullifyTombstone) null else tombstone
@@ -44,7 +44,7 @@ class TextKeyValueStore(val log: Log): KeyValueStore {
         }
 
         return getWithOffset(key)
-                ?.also { index[it.second] = it.first }
+                ?.also { index.putOffset(it.second, it.first) }
                 ?.second
     }
 
@@ -54,7 +54,7 @@ class TextKeyValueStore(val log: Log): KeyValueStore {
 
     override fun delete(key: String) {
         log.append("$key,$tombstone")
-        this.index[key] = tombstoneIndex
+        index.putOffset(key, tombstoneIndex)
     }
 
     internal fun <T> useEntries(offset: Long = 0, block: (Sequence<Pair<String, String>>) -> T): T
