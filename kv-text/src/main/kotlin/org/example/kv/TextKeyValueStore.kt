@@ -3,35 +3,59 @@ package org.example.kv
 import org.example.log.LineWithOffset
 import org.example.log.Log
 
-class TextKeyValueStore(private val log: Log):
-        SeekableKeyValueStore {
+class TextKeyValueStore(val log: Log): KeyValueStore {
+
+    private val index = mutableMapOf<String, Long>()
 
     override fun put(key: String, value: String) {
-        log.append("$key,$value")
+        index[key] = putAndGetOffset(key, value)
     }
 
     override fun putAll(entries: Map<String, String>) {
-        log.appendAll(entries.map { "${it.key},${it.value}" })
+        if (entries.isNotEmpty()) {
+            log.appendAll(entries.map { "${it.key},${it.value}" }).last()
+        }
     }
 
-    override fun putAndGetOffset(key: String, value: String): Long = log.append("${key},${value}")
+    private fun putAndGetOffset(key: String, value: String) = log.append("${key},${value}")
 
-    override fun get(key: String, offset: Long): String? = log.useLines(offset) { it.findLastKey(key) }
+    private fun get(key: String, offset: Long): String? = log.useLines(offset) { it.findLastKey(key) }
 
-    override fun get(key: String): String? = log.useLines { it.findLastKey(key) }
+    override fun get(key: String): String? {
 
-    override fun getWithOffset(key: String): Pair<Long, String>? = log.useLinesWithOffset { it.findLastKey(key) }
+        val offset = index[key]
+
+        if (offset != null) {
+            return get(key, offset)
+        }
+
+        return getWithOffset(key)
+                ?.also { index[it.second] = it.first }
+                ?.second
+    }
+
+    internal fun <T> useEntries(offset: Long = 0, block: (Sequence<Pair<String, String>>) -> T): T
+            = log.useLines(offset) {
+        block(it.map { line ->
+            val split = line.toEntry()
+            Pair(split[0], split[1])
+        })
+    }
+
+    private fun getWithOffset(key: String): Pair<Long, String>? = log.useLinesWithOffset { it.findLastKey(key) }
 
     private fun Sequence<String>.findLastKey(key: String): String? = this
-            .map { kvLine.split(it, 2) }
+            .map { it.toEntry() }
             .findLast { key == it[0] }?.get(1)
 
     private fun Sequence<LineWithOffset>.findLastKey(key: String) : Pair<Long, String>? = this
-            .map { Pair(it.offset, kvLine.split(it.line, 2)) }
+            .map { Pair(it.offset, it.line.toEntry()) }
             .findLast { key == it.second[0] }?.let { Pair(it.first, it.second[1]) }
 
+    private fun String.toEntry() = kvLine.split(this, 2)
+
     companion object {
-        val kvLine = Regex(",")
+        internal val kvLine = Regex(",")
     }
 
 }

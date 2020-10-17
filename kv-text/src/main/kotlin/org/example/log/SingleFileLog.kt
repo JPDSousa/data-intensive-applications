@@ -1,5 +1,6 @@
 package org.example.log
 
+import mu.KotlinLogging
 import java.io.RandomAccessFile
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets.UTF_8
@@ -10,15 +11,16 @@ import java.nio.file.StandardOpenOption.CREATE
 import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
+// TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
 class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8): Log {
 
-    var len = if (exists(path)) size(path) else 0L
+    private var size = if (exists(path)) size(path) else 0L
 
     override fun append(line: String): Long {
 
-        val offset = len
+        val offset = size
         write(path, listOf(line), charset, CREATE, APPEND)
-        len += line.byteLength()
+        size += line.byteLength()
 
         return offset
     }
@@ -29,12 +31,12 @@ class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8
             return listOf()
         }
 
-        val offsets = lines.runningFold(len, { acc, line ->
+        val offsets = lines.runningFold(size, { acc, line ->
             acc + line.byteLength()
         })
         write(path, lines, charset, CREATE, APPEND)
 
-        len = offsets.last()
+        size = offsets.last()
 
         return listOf(0L) + offsets.subList(0, offsets.size - 1)
     }
@@ -67,6 +69,8 @@ class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8
                 .generateSequenceWithOffset()
                 .use { block(it.asSequence()) }
     }
+
+    override fun size(): Long = size
 
     private fun String.byteLength() = this.toByteArray(charset).size
 

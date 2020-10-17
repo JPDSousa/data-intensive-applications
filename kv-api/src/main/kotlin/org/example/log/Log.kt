@@ -10,6 +10,8 @@ interface Log {
 
     fun <T> useLinesWithOffset(offset: Long = 0, block: (Sequence<LineWithOffset>) -> T): T
 
+    fun size(): Long
+
 }
 
 data class LineWithOffset(val offset: Long, val line: String)
