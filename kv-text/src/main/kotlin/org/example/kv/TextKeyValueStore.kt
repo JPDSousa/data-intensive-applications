@@ -13,7 +13,17 @@ class TextKeyValueStore(val log: Log): KeyValueStore {
 
     override fun putAll(entries: Map<String, String>) {
         if (entries.isNotEmpty()) {
-            log.appendAll(entries.map { "${it.key},${it.value}" }).last()
+            val content = ArrayList<String>(entries.size)
+            val keys = ArrayList<String>(entries.size)
+
+            for (entry in entries) {
+                content.add("${entry.key},${entry.value}")
+                keys.add(entry.key)
+            }
+
+            val offsets = log.appendAll(content)
+
+            index.putAll(keys.zip(offsets))
         }
     }
 
