@@ -35,7 +35,7 @@ interface LogTest {
             val expected = "oneline"
             log.append(expected)
 
-            log.useLines {
+            log.useEntries {
                 assertTrue(it.contains(expected))
             }
         }
@@ -51,7 +51,7 @@ interface LogTest {
 
             entries.forEach { log.append(it) }
 
-            val content = log.useLines { it.joinToString("\n") }
+            val content = log.useEntries { it.joinToString("\n") }
 
             assertEquals(expected, content)
         }

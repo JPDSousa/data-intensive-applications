@@ -1,10 +1,10 @@
 package org.example.kv
 
 import org.example.log.Index
-import org.example.log.LineWithOffset
+import org.example.log.EntryWithOffset
 import org.example.log.Log
 
-class TextKeyValueStore(private val index: Index, val log: Log): KeyValueStore {
+class TextKeyValueStore(private val index: Index, internal val log: Log): KeyValueStore {
 
     override fun put(key: String, value: String) {
         val offset = putAndGetOffset(key, value)
@@ -29,7 +29,7 @@ class TextKeyValueStore(private val index: Index, val log: Log): KeyValueStore {
 
     private fun putAndGetOffset(key: String, value: String) = log.append("${key},${value}")
 
-    private fun get(key: String, offset: Long): String? = log.useLines(offset) { it.findLastKey(key) }
+    private fun get(key: String, offset: Long): String? = log.useEntries(offset) { it.findLastKey(key) }
 
     private fun getRaw(key: String, nullifyTombstone: Boolean): String? {
 
@@ -57,21 +57,23 @@ class TextKeyValueStore(private val index: Index, val log: Log): KeyValueStore {
         index.putOffset(key, tombstoneIndex)
     }
 
+    override fun clear() = log.clear()
+
     internal fun <T> useEntries(offset: Long = 0, block: (Sequence<Pair<String, String>>) -> T): T
-            = log.useLines(offset) {
+            = log.useEntries(offset) {
         block(it.map { line ->
             val split = line.toEntry()
             Pair(split[0], split[1])
         })
     }
 
-    private fun getWithOffset(key: String): Pair<Long, String>? = log.useLinesWithOffset { it.findLastKey(key) }
+    private fun getWithOffset(key: String): Pair<Long, String>? = log.useEntriesWithOffset { it.findLastKey(key) }
 
     private fun Sequence<String>.findLastKey(key: String): String? = this
             .map { it.toEntry() }
             .findLast { key == it[0] }?.get(1)
 
-    private fun Sequence<LineWithOffset>.findLastKey(key: String) : Pair<Long, String>? = this
+    private fun Sequence<EntryWithOffset>.findLastKey(key: String) : Pair<Long, String>? = this
             .map { Pair(it.offset, it.line.toEntry()) }
             .findLast { key == it.second[0] }?.let { Pair(it.first, it.second[1]) }
 
@@ -79,8 +81,8 @@ class TextKeyValueStore(private val index: Index, val log: Log): KeyValueStore {
 
     companion object {
         internal val kvLine = Regex(",")
-        internal val tombstone = "tombstone"
-        private val tombstoneIndex = -1L
+        internal const val tombstone = "tombstone"
+        private const val tombstoneIndex = -1L
     }
 
 }

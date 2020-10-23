@@ -9,7 +9,7 @@ class TextLogs: Closeable {
     private val csvPath = Files.createTempFile("log-", ".csv")
 
     fun instances() = sequenceOf(
-            TestInstance("CSV Log", SingleFileLog(csvPath))
+            TestInstance("CSV Log", CSVFileLog(csvPath))
     )
 
     override fun close() {

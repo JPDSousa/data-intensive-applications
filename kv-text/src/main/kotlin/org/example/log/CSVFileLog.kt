@@ -1,6 +1,5 @@
 package org.example.log
 
-import mu.KotlinLogging
 import java.io.RandomAccessFile
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets.UTF_8
@@ -12,7 +11,7 @@ import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
 // TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
-class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8): Log {
+class CSVFileLog(private val path: Path, private val charset: Charset = UTF_8): Log {
 
     private var size = if (exists(path)) size(path) else 0L
 
@@ -41,7 +40,7 @@ class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8
         return listOf(0L) + offsets.subList(0, offsets.size - 1)
     }
 
-    override fun <T> useLines(offset: Long, block: (Sequence<String>) -> T): T {
+    override fun <T> useEntries(offset: Long, block: (Sequence<String>) -> T): T {
 
         if(notExists(path)) {
             return block(emptySequence())
@@ -58,7 +57,7 @@ class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8
                 .use { block(it.asSequence()) }
     }
 
-    override fun <T> useLinesWithOffset(offset: Long, block: (Sequence<LineWithOffset>) -> T): T {
+    override fun <T> useEntriesWithOffset(offset: Long, block: (Sequence<EntryWithOffset>) -> T): T {
 
         if(notExists(path)) {
             return block(emptySequence())
@@ -71,6 +70,8 @@ class SingleFileLog(private val path: Path, private val charset: Charset = UTF_8
     }
 
     override fun size(): Long = size
+
+    override fun clear() { delete(path) }
 
     private fun String.byteLength() = this.toByteArray(charset).size
 
@@ -86,5 +87,5 @@ private fun RandomAccessFile.generateSequenceWithOffset() = generateSequence {
     val pointer = filePointer
     val line = readLine()
 
-    line?.let { LineWithOffset(pointer, it) }
+    line?.let { EntryWithOffset(pointer, it) }
 }.asStream().onClose { this.close() }

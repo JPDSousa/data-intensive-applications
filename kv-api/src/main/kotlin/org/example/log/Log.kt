@@ -6,12 +6,14 @@ interface Log {
 
     fun appendAll(lines: Collection<String>): Collection<Long>
 
-    fun <T> useLines(offset: Long = 0, block: (Sequence<String>) -> T): T
+    fun <T> useEntries(offset: Long = 0, block: (Sequence<String>) -> T): T
 
-    fun <T> useLinesWithOffset(offset: Long = 0, block: (Sequence<LineWithOffset>) -> T): T
+    fun <T> useEntriesWithOffset(offset: Long = 0, block: (Sequence<EntryWithOffset>) -> T): T
 
     fun size(): Long
 
+    fun clear()
+
 }
 
-data class LineWithOffset(val offset: Long, val line: String)
+data class EntryWithOffset(val offset: Long, val line: String)

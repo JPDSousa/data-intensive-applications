@@ -2,7 +2,7 @@ package org.example.kv
 
 import mu.KotlinLogging
 import org.example.index.CheckpointableIndex
-import org.example.log.SingleFileLog
+import org.example.log.CSVFileLog
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files.createDirectories
@@ -35,19 +35,25 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Tex
         return@read if (isFirstClosed) segments else LinkedList(segments.subList(1, segments.size))
     }
 
+    fun clear() = lock.write {
+        segments.forEach { it.clear() }
+        segments.clear()
+        offsets.clear()
+    }
+
     private fun closedOffset() = lock.read { offsets.first }
 
     fun openSegment(): KeyValueStore {
 
         val firstSegment = lock.read { segments.first }
 
-        if (firstSegment.size() >= segmentSize) {
+        if (firstSegment.log.size() >= segmentSize) {
             return lock.write {
                 val actualFirstSegment = segments.first
 
                 // now that we're inside an exclusive lock, we need to check again if we still need to open a new
                 // segment
-                val actualSize = actualFirstSegment.size()
+                val actualSize = actualFirstSegment.log.size()
                 if (actualSize >= segmentSize) {
 
                     logger.debug { "Last segment is full. Closing and opening a new one." }
@@ -84,7 +90,7 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Tex
                         val compactedSegment = memorySegment.flush()
 
                         if (compactedSegments.isNotEmpty()) {
-                            newOffsets.add(newOffsets.last() + compactedSegments.last().size())
+                            newOffsets.add(newOffsets.last() + compactedSegments.last().log.size())
                         }
                         compactedSegments.add(compactedSegment)
                     }
@@ -95,25 +101,26 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Tex
                 val compactedSegment = memorySegment.flush()
 
                 if (compactedSegments.isNotEmpty()) {
-                    newOffsets.add(newOffsets.last() + compactedSegments.last().size())
+                    newOffsets.add(newOffsets.last() + compactedSegments.last().log.size())
                 }
                 compactedSegments.add(compactedSegment)
             }
         }
+
         lock.write {
-            compactedSegments.addAll(segments.subList(compactedSegments.size, segments.size))
+            compactedSegments.addAll(segments.subList(segmentsToCompact.size, segments.size))
             segments = compactedSegments
-            newOffsets.addAll(offsets.subList(newOffsets.size, offsets.size))
+            newOffsets.addAll(offsets.subList(segmentsToCompact.size, offsets.size))
             offsets = newOffsets
         }
+
+        segmentsToCompact.forEach { it.clear() }
     }
 
-    private fun TextKeyValueStore.isClosed() = size() >= segmentSize
+    private fun TextKeyValueStore.isClosed() = log.size() >= segmentSize
 
     override fun iterator() = segments.iterator()
 }
-
-private fun TextKeyValueStore.size() = this.log.size()
 
 // Thread safe
 private class SegmentFactory(private val path: Path,
@@ -126,7 +133,7 @@ private class SegmentFactory(private val path: Path,
         val segmentDir = createDirectories(path.resolve("segment_$segmentId"))
         val logPath = createFile(segmentDir.resolve("log"))
 
-        val log = SingleFileLog(logPath)
+        val log = CSVFileLog(logPath)
 
         return TextKeyValueStore(
                 CheckpointableIndex(segmentDir, log::size),
@@ -136,7 +143,7 @@ private class SegmentFactory(private val path: Path,
 }
 
 private class CompactedSegment(private val factory: SegmentFactory,
-                                  private val limit: Long) {
+                               private val limit: Long) {
 
     private val compactedContent = mutableMapOf<String, String>()
     private var size = 0L

@@ -52,6 +52,8 @@ class SegmentedKeyValueStore(path: Path,
     override fun delete(key: String) {
         this.kvs.openSegment().delete(key)
     }
+
+    override fun clear() = kvs.clear()
 }
 
 
