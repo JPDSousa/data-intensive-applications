@@ -1,59 +1,53 @@
 package org.example.kv
 
-import org.apache.commons.math3.distribution.ParetoDistribution
 import org.example.TestInstance
 import org.example.log.Log
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
+import kotlin.math.exp
 import kotlin.streams.asStream
 
-interface LogTest {
+@Suppress("FunctionName")
+interface LogTest<T> {
 
-    fun instances(): Sequence<TestInstance<Log>>
+    fun instances(): Sequence<TestInstance<Log<T>>>
+
+    fun nextValue(): T
 
     @TestFactory fun `append on empty file should return 0`() = instances().map {
         dynamicTest(it.name) {
-            assertEquals(0, it.instance.append("oneline"))
+            assertEquals(0, it.instance.append(nextValue()))
         }
     }.asStream()
 
     @TestFactory fun `append should sum offset`() = instances().map {
         dynamicTest(it.name) {
             val log = it.instance
-            val firstOffset = log.append("oneline")
-            val secondOffset = log.append("twoline")
+            val firstOffset = log.append(nextValue())
+            val secondOffset = log.append(nextValue())
 
             assertTrue(firstOffset < secondOffset)
         }
     }.asStream()
 
-    @TestFactory fun `append should be readable`() = instances().map {
-        dynamicTest(it.name) {
-            val log = it.instance
-            val expected = "oneline"
+    @TestFactory fun `append should be readable`() = instances().map { case ->
+        dynamicTest(case.name) {
+            val log = case.instance
+            val expected = nextValue()
             log.append(expected)
 
             log.useEntries {
-                assertTrue(it.contains(expected))
+                val items = it.toList()
+                assertEquals(items.size, 1)
+
+                val actual = items[0]
+                if (expected is ByteArray && actual is ByteArray) {
+                    assertArrayEquals(expected, actual)
+                } else {
+                    assertEquals(expected, actual)
+                }
             }
-        }
-    }.asStream()
-
-    @TestFactory fun `entries should be partitioned by lines`() = instances().map {
-        dynamicTest(it.name) {
-
-            val distribution = ParetoDistribution()
-            val log = it.instance
-            val entries = (1..100).map { distribution.sample() }.map { "entryentryentry$it" }
-            val expected = entries.joinToString("\n")
-
-            entries.forEach { log.append(it) }
-
-            val content = log.useEntries { it.joinToString("\n") }
-
-            assertEquals(expected, content)
         }
     }.asStream()
 

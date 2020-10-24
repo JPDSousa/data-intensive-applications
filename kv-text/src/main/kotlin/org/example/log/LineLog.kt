@@ -11,29 +11,29 @@ import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
 // TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
-class CSVFileLog(private val path: Path, private val charset: Charset = UTF_8): Log {
+class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log<String> {
 
     private var size = if (exists(path)) size(path) else 0L
 
-    override fun append(line: String): Long {
+    override fun append(entry: String): Long {
 
         val offset = size
-        write(path, listOf(line), charset, CREATE, APPEND)
-        size += line.byteLength()
+        write(path, listOf(entry), charset, CREATE, APPEND)
+        size += entry.byteLength()
 
         return offset
     }
 
-    override fun appendAll(lines: Collection<String>): Collection<Long> {
+    override fun appendAll(entries: Collection<String>): Collection<Long> {
 
-        if (lines.isEmpty()) {
+        if (entries.isEmpty()) {
             return listOf()
         }
 
-        val offsets = lines.runningFold(size, { acc, line ->
+        val offsets = entries.runningFold(size, { acc, line ->
             acc + line.byteLength()
         })
-        write(path, lines, charset, CREATE, APPEND)
+        write(path, entries, charset, CREATE, APPEND)
 
         size = offsets.last()
 
@@ -57,7 +57,7 @@ class CSVFileLog(private val path: Path, private val charset: Charset = UTF_8): 
                 .use { block(it.asSequence()) }
     }
 
-    override fun <T> useEntriesWithOffset(offset: Long, block: (Sequence<EntryWithOffset>) -> T): T {
+    override fun <T> useEntriesWithOffset(offset: Long, block: (Sequence<EntryWithOffset<String>>) -> T): T {
 
         if(notExists(path)) {
             return block(emptySequence())

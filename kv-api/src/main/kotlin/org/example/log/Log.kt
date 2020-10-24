@@ -1,14 +1,14 @@
 package org.example.log
 
-interface Log {
+interface Log<T> {
 
-    fun append(line: String): Long
+    fun append(entry: T): Long
 
-    fun appendAll(lines: Collection<String>): Collection<Long>
+    fun appendAll(entries: Collection<T>): Collection<Long>
 
-    fun <T> useEntries(offset: Long = 0, block: (Sequence<String>) -> T): T
+    fun <R> useEntries(offset: Long = 0, block: (Sequence<T>) -> R): R
 
-    fun <T> useEntriesWithOffset(offset: Long = 0, block: (Sequence<EntryWithOffset>) -> T): T
+    fun <R> useEntriesWithOffset(offset: Long = 0, block: (Sequence<EntryWithOffset<T>>) -> R): R
 
     fun size(): Long
 
@@ -16,4 +16,4 @@ interface Log {
 
 }
 
-data class EntryWithOffset(val offset: Long, val line: String)
+data class EntryWithOffset<T>(val offset: Long, val entry: T)

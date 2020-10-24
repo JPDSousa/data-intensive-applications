@@ -4,7 +4,7 @@ import org.example.log.Index
 import org.example.log.EntryWithOffset
 import org.example.log.Log
 
-class TextKeyValueStore(private val index: Index, internal val log: Log): KeyValueStore {
+class TextKeyValueStore(private val index: Index, internal val log: Log<String>): KeyValueStore {
 
     override fun put(key: String, value: String) {
         val offset = putAndGetOffset(key, value)
@@ -73,8 +73,8 @@ class TextKeyValueStore(private val index: Index, internal val log: Log): KeyVal
             .map { it.toEntry() }
             .findLast { key == it[0] }?.get(1)
 
-    private fun Sequence<EntryWithOffset>.findLastKey(key: String) : Pair<Long, String>? = this
-            .map { Pair(it.offset, it.line.toEntry()) }
+    private fun Sequence<EntryWithOffset<String>>.findLastKey(key: String) : Pair<Long, String>? = this
+            .map { Pair(it.offset, it.entry.toEntry()) }
             .findLast { key == it.second[0] }?.let { Pair(it.first, it.second[1]) }
 
     private fun String.toEntry() = kvLine.split(this, 2)

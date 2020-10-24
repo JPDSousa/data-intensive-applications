@@ -2,7 +2,7 @@ package org.example.kv
 
 import mu.KotlinLogging
 import org.example.index.CheckpointableIndex
-import org.example.log.CSVFileLog
+import org.example.log.LineLog
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files.createDirectories
@@ -133,7 +133,7 @@ private class SegmentFactory(private val path: Path,
         val segmentDir = createDirectories(path.resolve("segment_$segmentId"))
         val logPath = createFile(segmentDir.resolve("log"))
 
-        val log = CSVFileLog(logPath)
+        val log = LineLog(logPath)
 
         return TextKeyValueStore(
                 CheckpointableIndex(segmentDir, log::size),
