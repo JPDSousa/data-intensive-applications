@@ -7,11 +7,13 @@ import org.example.log.Log
 class TextKeyValueStore(private val index: Index, internal val log: Log<String>): KeyValueStore {
 
     override fun put(key: String, value: String) {
+
         val offset = putAndGetOffset(key, value)
         this.index.putOffset(key, offset)
     }
 
     override fun putAll(entries: Map<String, String>) {
+
         if (entries.isNotEmpty()) {
             val content = ArrayList<String>(entries.size)
             val keys = ArrayList<String>(entries.size)

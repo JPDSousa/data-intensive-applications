@@ -15,6 +15,10 @@ class TextKeyValueStoreTest: KeyValueStoreTest {
         logs = Logs()
     }
 
+    @AfterEach fun deleteFiles() {
+        logs!!.close()
+    }
+
     override fun instances() = logs!!.stringInstances().map {
 
         val log = it.instance
@@ -22,10 +26,6 @@ class TextKeyValueStoreTest: KeyValueStoreTest {
         val index = CheckpointableIndex(indexDir, log::size)
 
         TestInstance("Text KV - ${it.name}", TextKeyValueStore(index, log) as KeyValueStore)
-    }
-
-    @AfterEach fun deleteFiles() {
-        logs!!.close()
     }
 }
 
