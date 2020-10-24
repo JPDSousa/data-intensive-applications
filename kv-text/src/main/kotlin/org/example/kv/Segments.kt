@@ -14,7 +14,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
-internal class Segments(path: Path, private val segmentSize: Long): Iterable<TextKeyValueStore> {
+internal class Segments(path: Path, private val segmentSize: Long): Iterable<CSVKeyValueStore> {
 
     private val logger = KotlinLogging.logger {}
 
@@ -24,7 +24,7 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Tex
     private var offsets = LinkedList(mutableListOf(0L))
     private var segments = LinkedList(listOf(factory.createSegment()))
 
-    private fun closedSegments(): List<TextKeyValueStore> = lock.read {
+    private fun closedSegments(): List<CSVKeyValueStore> = lock.read {
 
         val isFirstClosed = segments.first.isClosed()
 
@@ -76,7 +76,7 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Tex
 
         logger.debug { "Triggering a compact operation" }
         val segmentsToCompact = closedSegments()
-        val compactedSegments = LinkedList<TextKeyValueStore>()
+        val compactedSegments = LinkedList<CSVKeyValueStore>()
         val newOffsets = LinkedList<Long>()
         newOffsets.add(0L)
 
@@ -117,7 +117,7 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<Tex
         segmentsToCompact.forEach { it.clear() }
     }
 
-    private fun TextKeyValueStore.isClosed() = log.size() >= segmentSize
+    private fun CSVKeyValueStore.isClosed() = log.size() >= segmentSize
 
     override fun iterator() = segments.iterator()
 }
@@ -127,7 +127,7 @@ private class SegmentFactory(private val path: Path,
                              val charset: Charset = UTF_8,
                              private var segmentCounter: AtomicInteger = AtomicInteger(0)) {
 
-    fun createSegment(): TextKeyValueStore {
+    fun createSegment(): CSVKeyValueStore {
         val segmentId = segmentCounter.getAndIncrement()
 
         val segmentDir = createDirectories(path.resolve("segment_$segmentId"))
@@ -135,7 +135,7 @@ private class SegmentFactory(private val path: Path,
 
         val log = LineLog(logPath)
 
-        return TextKeyValueStore(
+        return CSVKeyValueStore(
                 CheckpointableIndex(segmentDir, log::size),
                 log
         )
@@ -158,7 +158,7 @@ private class CompactedSegment(private val factory: SegmentFactory,
         }
     }
 
-    fun flush(): TextKeyValueStore {
+    fun flush(): CSVKeyValueStore {
         val compacted = factory.createSegment()
 
         compacted.putAll(compactedContent)

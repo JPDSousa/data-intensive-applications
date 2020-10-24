@@ -7,7 +7,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import java.nio.file.Files.createTempDirectory
 
-class TextKeyValueStoreTest: KeyValueStoreTest {
+class CSVKeyValueStoreTest: KeyValueStoreTest {
 
     private var logs : Logs? = null
 
@@ -25,7 +25,7 @@ class TextKeyValueStoreTest: KeyValueStoreTest {
         val indexDir = createTempDirectory("${it.name}-index-")
         val index = CheckpointableIndex(indexDir, log::size)
 
-        TestInstance("Text KV - ${it.name}", TextKeyValueStore(index, log) as KeyValueStore)
+        TestInstance("Text KV - ${it.name}", CSVKeyValueStore(index, log) as KeyValueStore)
     }
 }
 

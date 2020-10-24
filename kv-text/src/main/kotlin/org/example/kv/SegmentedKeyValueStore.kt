@@ -38,7 +38,7 @@ class SegmentedKeyValueStore(path: Path,
         for (keyValueStore in kvs) {
             val value = keyValueStore.getWithTombstone(key)
 
-            if (value == TextKeyValueStore.tombstone) {
+            if (value == CSVKeyValueStore.tombstone) {
                 return null
             }
 

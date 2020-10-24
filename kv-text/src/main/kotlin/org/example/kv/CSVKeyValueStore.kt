@@ -4,7 +4,7 @@ import org.example.log.Index
 import org.example.log.EntryWithOffset
 import org.example.log.Log
 
-class TextKeyValueStore(private val index: Index, internal val log: Log<String>): KeyValueStore {
+class CSVKeyValueStore(private val index: Index, internal val log: Log<String>): KeyValueStore {
 
     override fun put(key: String, value: String) {
 
