@@ -1,15 +1,22 @@
 package org.example.log
 
-interface Index {
+import kotlinx.serialization.Serializable
 
-    fun putOffset(key: String, offset: Long)
+interface Index<K> {
 
-    fun putAllOffsets(pairs: Iterable<Pair<String, Long>>) {
+    fun putOffset(key: K, offset: Long)
+
+    fun putAllOffsets(pairs: Iterable<IndexEntry<K>>) {
         pairs.forEach {
-            putOffset(it.first, it.second)
+            putOffset(it.key, it.offset)
         }
     }
 
-    fun getOffset(key: String): Long?
+    fun getOffset(key: K): Long?
+
+    fun entries(): Collection<IndexEntry<K>>
 
 }
+
+@Serializable
+data class IndexEntry<K>(val key: K, val offset: Long)

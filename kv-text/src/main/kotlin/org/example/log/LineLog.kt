@@ -1,6 +1,7 @@
 package org.example.log
 
 import java.io.RandomAccessFile
+import java.lang.System.lineSeparator
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files.*
@@ -19,7 +20,7 @@ class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log
 
         val offset = size
         write(path, listOf(entry), charset, CREATE, APPEND)
-        size += entry.byteLength()
+        size += entry.byteLength() + lineSeparator().byteLength()
 
         return offset
     }

@@ -7,31 +7,36 @@ import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.function.Executable
 import kotlin.streams.asStream
 
-interface KeyValueStoreTest {
+@Suppress("FunctionName")
+interface KeyValueStoreTest<K, V> {
 
-    fun instances(): Sequence<TestInstance<KeyValueStore>>
+    fun instances(): Sequence<TestInstance<KeyValueStore<K, V>>>
+
+    fun nextKey(): K
+
+    fun nextValue(): V
     
     @TestFactory fun `absent key`() = instances().map { 
         dynamicTest(it.name) {
-            assertNull(it.instance.get("absent"))
+            assertNull(it.instance.get(nextKey()))
         }
     }.asStream()
 
     @TestFactory fun `written value should be readable`() = instances().map {
         dynamicTest(it.name) {
             val kv = it.instance
-            val key = "key"
-            val expected = "value"
+            val key = nextKey()
+            val expected = nextValue()
 
             kv.put(key, expected)
             assertEquals(expected, kv.get(key))
         }
     }.asStream()
 
-    @TestFactory fun `multiple keys are isolated`() = instances().map {
-        dynamicTest(it.name) {
-            val kv = it.instance
-            val entries = (0..5).associate { Pair("key$it", "value$it") }
+    @TestFactory fun `multiple keys are isolated`() = instances().map { instance ->
+        dynamicTest(instance.name) {
+            val kv = instance.instance
+            val entries = (0..5).associate { Pair(nextKey(), nextValue()) }
 
             kv.putAll(entries)
 
@@ -43,9 +48,9 @@ interface KeyValueStoreTest {
         dynamicTest(it.name) {
 
             val kv = it.instance
-            val key = "key"
-            val old = "value"
-            val new = "value1"
+            val key = nextKey()
+            val old = nextValue()
+            val new = nextValue()
 
             kv.put(key, old)
             kv.put(key, new)
@@ -59,19 +64,25 @@ interface KeyValueStoreTest {
 
             val kv = it.instance
 
-            kv.put("key1", "value1")
-            kv.put("key2", "value2")
-            kv.delete("key1")
-            assertNull(kv.get("key1"))
-            assertEquals(kv.get("key2"), "value2")
+            val key1 = nextKey()
+            val value1 = nextValue()
+
+            val key2 = nextKey()
+            val value2 = nextValue()
+
+            kv.put(key1, value1)
+            kv.put(key2, value2)
+            kv.delete(key1)
+            assertNull(kv.get(key1))
+            assertEquals(kv.get(key2), value2)
         }
     }.asStream()
 
 }
 
-internal class GetAssertion(private val kv: KeyValueStore,
-                            private val key: String,
-                            private val expected: String): Executable {
+internal class GetAssertion<K, V>(private val kv: KeyValueStore<K, V>,
+                            private val key: K,
+                            private val expected: V): Executable {
 
     override fun execute() {
         assertEquals(expected, kv.get(key))

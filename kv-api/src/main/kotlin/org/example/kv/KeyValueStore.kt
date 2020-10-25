@@ -1,16 +1,16 @@
 package org.example.kv
 
-interface KeyValueStore {
+interface KeyValueStore<K, V> {
 
-    fun put(key: String, value: String)
+    fun put(key: K, value: V)
 
-    fun putAll(entries: Map<String, String>) {
+    fun putAll(entries: Map<K, V>) {
         entries.forEach(this::put)
     }
 
-    fun get(key: String): String?
+    fun get(key: K): V?
 
-    fun delete(key: String)
+    fun delete(key: K)
 
     fun clear()
 }

@@ -1,30 +1,24 @@
 package org.example.kv
 
 import mu.KotlinLogging
-import org.example.index.CheckpointableIndex
-import org.example.log.LineLog
-import java.nio.charset.Charset
-import java.nio.charset.StandardCharsets.UTF_8
-import java.nio.file.Files.createDirectories
-import java.nio.file.Files.createFile
-import java.nio.file.Path
+import org.example.log.Index
+import org.example.log.Log
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
-internal class Segments(path: Path, private val segmentSize: Long): Iterable<CSVKeyValueStore> {
+internal class Segments<E, K, V>(private val factory: SegmentFactory<E, K, V>,
+                                 private val segmentSize: Long): Iterable<IndexedKeyValueStore<E, K, V>> {
 
     private val logger = KotlinLogging.logger {}
-
-    private val factory = SegmentFactory(path)
 
     private val lock = ReentrantReadWriteLock()
     private var offsets = LinkedList(mutableListOf(0L))
     private var segments = LinkedList(listOf(factory.createSegment()))
 
-    private fun closedSegments(): List<CSVKeyValueStore> = lock.read {
+    private fun closedSegments(): List<IndexedKeyValueStore<E, K, V>> = lock.read {
 
         val isFirstClosed = segments.first.isClosed()
 
@@ -43,7 +37,7 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<CSV
 
     private fun closedOffset() = lock.read { offsets.first }
 
-    fun openSegment(): KeyValueStore {
+    fun openSegment(): KeyValueStore<K, V> {
 
         val firstSegment = lock.read { segments.first }
 
@@ -76,26 +70,26 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<CSV
 
         logger.debug { "Triggering a compact operation" }
         val segmentsToCompact = closedSegments()
-        val compactedSegments = LinkedList<CSVKeyValueStore>()
+        val compactedSegments = LinkedList<IndexedKeyValueStore<E, K, V>>()
         val newOffsets = LinkedList<Long>()
         newOffsets.add(0L)
 
         for (segment in segmentsToCompact) {
-            val memorySegment = CompactedSegment(factory, segmentSize)
+            // TODO compact according to segment size instead.
+            val memorySegment = CompactedSegment(factory, 1000)
 
-            segment.useEntries { entries ->
-                entries.forEach { entry ->
-                    memorySegment.upsert(entry)
-                    if (memorySegment.isFull()) {
-                        val compactedSegment = memorySegment.flush()
+            segment.forEachEntry { entry ->
+                memorySegment.upsert(entry)
+                if (memorySegment.isFull()) {
+                    val compactedSegment = memorySegment.flush()
 
-                        if (compactedSegments.isNotEmpty()) {
-                            newOffsets.add(newOffsets.last() + compactedSegments.last().log.size())
-                        }
-                        compactedSegments.add(compactedSegment)
+                    if (compactedSegments.isNotEmpty()) {
+                        newOffsets.add(newOffsets.last() + compactedSegments.last().log.size())
                     }
+                    compactedSegments.add(compactedSegment)
                 }
             }
+
             if (memorySegment.isNotEmpty()) {
                 // TODO copy paste from above
                 val compactedSegment = memorySegment.flush()
@@ -117,61 +111,57 @@ internal class Segments(path: Path, private val segmentSize: Long): Iterable<CSV
         segmentsToCompact.forEach { it.clear() }
     }
 
-    private fun CSVKeyValueStore.isClosed() = log.size() >= segmentSize
+    private fun IndexedKeyValueStore<E, K, V>.isClosed() = log.size() >= segmentSize
 
     override fun iterator() = segments.iterator()
 }
 
-// Thread safe
-private class SegmentFactory(private val path: Path,
-                             val charset: Charset = UTF_8,
-                             private var segmentCounter: AtomicInteger = AtomicInteger(0)) {
+internal interface SegmentResourcesFactory<E, K, V> {
 
-    fun createSegment(): CSVKeyValueStore {
-        val segmentId = segmentCounter.getAndIncrement()
+    fun createLog(segmentId: String): Log<E>
 
-        val segmentDir = createDirectories(path.resolve("segment_$segmentId"))
-        val logPath = createFile(segmentDir.resolve("log"))
+    fun createIndex(segmentId: String): Index<K>
 
-        val log = LineLog(logPath)
+    fun createEncoder(): EntryEncoder<E, K, V>
 
-        return CSVKeyValueStore(
-                CheckpointableIndex(segmentDir, log::size),
-                log
-        )
-    }
+    fun tombstone(): V
+
+    fun createKeyValueStore(segmentId: String) = IndexedKeyValueStore(
+            createIndex(segmentId),
+            createLog(segmentId),
+            createEncoder(),
+            tombstone()
+    )
+
 }
 
-private class CompactedSegment(private val factory: SegmentFactory,
-                               private val limit: Long) {
+// Thread safe
+internal class SegmentFactory<E, K, V>(private val resourceFactory: SegmentResourcesFactory<E, K, V>,
+                                       private var segmentCounter: AtomicInteger = AtomicInteger(0)) {
 
-    private val compactedContent = mutableMapOf<String, String>()
-    private var size = 0L
+    fun createSegment(): IndexedKeyValueStore<E, K, V> = resourceFactory.createKeyValueStore(
+            segmentCounter.getAndIncrement().toString())
 
-    fun upsert(entry: Pair<String, String>) {
-        compactedContent.compute(entry.first) { _, oldValue ->
-            val newValue = entry.second
-            if (oldValue != null) {
-                size -= (oldValue.byteLength() - newValue.byteLength())
-            }
-            return@compute newValue
-        }
-    }
+}
 
-    fun flush(): CSVKeyValueStore {
+private class CompactedSegment<E, K, V>(private val factory: SegmentFactory<E, K, V>,
+                                        private val limit: Int) {
+
+    private val compactedContent = mutableMapOf<K, V>()
+
+    fun upsert(entry: Pair<K, V>) = compactedContent.put(entry.first, entry.second)
+
+    fun flush(): IndexedKeyValueStore<E, K, V> {
         val compacted = factory.createSegment()
 
         compacted.putAll(compactedContent)
         compactedContent.clear()
-        size = 0L
 
         return compacted
     }
 
-    private fun String.byteLength() = this.toByteArray(factory.charset).size
+    fun isFull() = compactedContent.size >= limit
 
-    fun isFull() = size >= limit
-
-    fun isNotEmpty() = size > 0
+    fun isNotEmpty() = compactedContent.isNotEmpty()
 
 }

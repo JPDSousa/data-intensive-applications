@@ -1,11 +1,9 @@
-package org.example.kv
+package org.example.log
 
 import org.example.TestInstance
-import org.example.log.Log
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
-import kotlin.math.exp
 import kotlin.streams.asStream
 
 @Suppress("FunctionName")

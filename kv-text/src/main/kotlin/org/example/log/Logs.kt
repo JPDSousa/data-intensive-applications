@@ -9,9 +9,10 @@ class Logs: Closeable {
 
     private val linePath = Files.createTempFile("log-", ".csv")
     private val binaryPath = Files.createTempFile("log-", ".bin")
+    private val factory = LogFactory()
 
     fun stringInstances() = sequenceOf(TestInstance("Line Log", LineLog(linePath))) + binaryInstances().map {
-        TestInstance("Encoder ~ ${it.name}", StringEncoderLog(it.instance) as Log<String>)
+        TestInstance("Encoder ~ ${it.name}", factory.stringEncoder(it.instance) as Log<String>)
     }
 
     fun binaryInstances() = sequenceOf(TestInstance("Binary Log", BinaryLog(binaryPath)))

@@ -1,15 +1,37 @@
 package org.example.kv
 
-import org.example.TestInstance
-import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicLong
 
-internal class SegmentedKeyValueStoreTest: KeyValueStoreTest {
+internal abstract class SegmentedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
 
-    private val smallSegment = Files.createTempDirectory("small-kv-")
-    private val longSegment = Files.createTempDirectory("long-kv-")
+    internal val kvs = KeyValueStores()
+    internal val uniqueGenerator = AtomicLong()
 
-    override fun instances() = sequenceOf(
-            TestInstance("Small Segments", SegmentedKeyValueStore(smallSegment, 5) as KeyValueStore),
-            TestInstance("Long Segments", SegmentedKeyValueStore(longSegment) as KeyValueStore)
-    )
+}
+
+internal class StringSegmentedKeyValueStoreTest: SegmentedKeyValueStoreTest<String, String>() {
+
+    override fun instances() = kvs.stringSegmentedKeyValueStores()
+
+    override fun nextKey() = uniqueGenerator.getAndIncrement()
+            .toString()
+
+    override fun nextValue() = uniqueGenerator.getAndIncrement()
+            .toString()
+
+
+}
+
+internal class BinarySegmentedKeyValueStoreTest: SegmentedKeyValueStoreTest<ByteArray, ByteArray>() {
+
+    override fun instances() = kvs.binarySegmentedKeyValueStores()
+
+    override fun nextKey() = uniqueGenerator.getAndIncrement()
+            .toString()
+            .toByteArray()
+
+    override fun nextValue() = uniqueGenerator.getAndIncrement()
+            .toString()
+            .toByteArray()
+
 }

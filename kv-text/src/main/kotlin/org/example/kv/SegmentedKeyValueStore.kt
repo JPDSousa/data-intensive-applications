@@ -4,14 +4,14 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.nio.file.Path
 import java.util.concurrent.Executors
 
-class SegmentedKeyValueStore(path: Path,
-                             segmentSize: Long = 1024 * 1024,
-                             private val compactCycle: Long = 1000): KeyValueStore {
+internal class SegmentedKeyValueStore<E, K, V>(segmentFactory: SegmentFactory<E, K, V>,
+                                               private val tombstone: V,
+                                               segmentSize: Long = 1024 * 1024,
+                                               private val compactCycle: Long = 1000): KeyValueStore<K, V> {
 
-    private val kvs = Segments(path, segmentSize)
+    private val segments = Segments(segmentFactory, segmentSize)
     @Volatile
     private var opsWithoutCompact: Long = 0
 
@@ -22,7 +22,7 @@ class SegmentedKeyValueStore(path: Path,
                 delay(1000 * 60)
                 val opsWithoutCompact = this@SegmentedKeyValueStore.opsWithoutCompact
                 if (opsWithoutCompact >= compactCycle) {
-                    kvs.compact()
+                    segments.compact()
                     // this is possibly not thread safe
                     this@SegmentedKeyValueStore.opsWithoutCompact -= opsWithoutCompact
                 }
@@ -30,15 +30,15 @@ class SegmentedKeyValueStore(path: Path,
         }
     }
 
-    override fun put(key: String, value: String) {
-        kvs.openSegment().put(key, value)
+    override fun put(key: K, value: V) {
+        segments.openSegment().put(key, value)
     }
 
-    override fun get(key: String): String? {
-        for (keyValueStore in kvs) {
-            val value = keyValueStore.getWithTombstone(key)
+    override fun get(key: K): V? {
+        for (kvs in segments) {
+            val value = kvs.getWithTombstone(key)
 
-            if (value == CSVKeyValueStore.tombstone) {
+            if (value == tombstone) {
                 return null
             }
 
@@ -49,11 +49,11 @@ class SegmentedKeyValueStore(path: Path,
         return null
     }
 
-    override fun delete(key: String) {
-        this.kvs.openSegment().delete(key)
+    override fun delete(key: K) {
+        this.segments.openSegment().delete(key)
     }
 
-    override fun clear() = kvs.clear()
+    override fun clear() = segments.clear()
 }
 
 
