@@ -8,6 +8,7 @@ import java.nio.file.Files.*
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
+import java.util.zip.CRC32
 import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
@@ -19,8 +20,10 @@ class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log
     override fun append(entry: String): Long {
 
         val offset = size
-        write(path, listOf(entry), charset, CREATE, APPEND)
-        size += entry.byteLength() + lineSeparator().byteLength()
+
+        val line = entry.prependHeader()
+        write(path, listOf(line), charset, CREATE, APPEND)
+        size += line.entrySize()
 
         return offset
     }
@@ -31,10 +34,11 @@ class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log
             return listOf()
         }
 
-        val offsets = entries.runningFold(size, { acc, line ->
-            acc + line.byteLength() + lineSeparator().byteLength()
+        val lines = entries.map { it.prependHeader() }
+        val offsets = lines.runningFold(size, { acc, entry ->
+            acc + entry.entrySize()
         })
-        write(path, entries, charset, CREATE, APPEND)
+        write(path, lines, charset, CREATE, APPEND)
 
         size = offsets.last()
 
@@ -49,13 +53,14 @@ class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log
 
         if (offset == 0L) {
             return lines(path, charset)
-                    .use { block(it.asSequence()) }
+                    .use { stream -> stream.asSequence().map { it.stripHeader() }.let(block) }
         }
 
         return path.randomAccessReadOnly()
                 .apply { seek(offset) }
+                // use buffer at this point
                 .generateStream()
-                .use { block(it.asSequence()) }
+                .use { stream -> stream.asSequence().map { it.stripHeader() }.let(block) }
     }
 
     override fun <T> useEntriesWithOffset(offset: Long, block: (Sequence<EntryWithOffset<String>>) -> T): T {
@@ -67,16 +72,47 @@ class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log
         return path.randomAccessReadOnly()
                 .apply { seek(offset) }
                 .generateSequenceWithOffset()
-                .use { block(it.asSequence()) }
+                .use { stream -> stream.asSequence().map { it.stripHeader() }.let(block) }
     }
 
     override fun size(): Long = size
 
     override fun clear() { delete(path) }
 
-    private fun String.byteLength() = this.toByteArray(charset).size
+    private fun String.byteLength() = toByteArray(charset).size
+
+    private fun String.entrySize() = byteLength() + lineSeparator().byteLength()
+
+    private fun String.prependHeader(): String {
+
+        val checksum = CRC32()
+        checksum.update(toByteArray(charset))
+
+        return "${checksum.value}-$this"
+    }
+
+    private fun String.stripHeader(): String {
+
+        val match = headerRegex.matchEntire(this)!!
+        val checksum = match.destructured.component1().toLong()
+        val content = match.destructured.component2()
+
+        val hash = CRC32()
+        hash.update(content.toByteArray(charset))
+        require(hash.value == checksum) {
+            "Checksum doesn't match for entry $content (expected: $checksum, got: $hash)"
+        }
+
+        return content
+    }
+
+    private fun EntryWithOffset<String>.stripHeader() = EntryWithOffset(offset, entry.stripHeader())
 
     private fun Path.randomAccessReadOnly() : RandomAccessFile = RandomAccessFile(this.toFile(), "r")
+
+    companion object {
+        private val headerRegex = Regex("(\\d+)-(.*)")
+    }
 }
 
 internal fun RandomAccessFile.generateStream() = generateSequence { readLine() }
