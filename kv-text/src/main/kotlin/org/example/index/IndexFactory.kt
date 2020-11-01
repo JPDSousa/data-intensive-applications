@@ -3,13 +3,26 @@ package org.example.index
 import kotlinx.serialization.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
-import org.example.log.*
+import org.example.log.Index
+import org.example.log.IndexEntry
+import org.example.log.Log
+import org.example.log.LogEncoder
 
 class IndexFactory {
 
-    fun <K> createTreeIndex(log: Log<IndexEntry<K>>? = null): Index<K> {
+    fun <K : Comparable<K>> createTreeIndex(log: Log<IndexEntry<K>>? = null): Index<K> {
 
         val baseIndex = TreeIndex<K>()
+        if (log == null) {
+            return baseIndex
+        }
+
+        return CheckpointableIndex(baseIndex, log)
+    }
+
+    fun <K> createHashIndex(log: Log<IndexEntry<K>>? = null) : Index<K> {
+
+        val baseIndex = HashIndex<K>()
         if (log == null) {
             return baseIndex
         }

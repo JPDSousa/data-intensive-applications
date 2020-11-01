@@ -1,22 +1,25 @@
 package org.example.kv
 
 import kotlinx.serialization.ExperimentalSerializationApi
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.AfterAll
 import java.util.concurrent.atomic.AtomicLong
 
 
 abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
 
-    protected var kvs: KeyValueStores? = null
     protected val uniqueGenerator = AtomicLong()
 
-    @BeforeEach fun openResources() {
-        kvs = KeyValueStores()
-    }
+    companion object {
 
-    @AfterEach fun closeResources() {
-        kvs!!.close()
+        @JvmStatic
+        internal val kvs = KeyValueStores()
+
+        @JvmStatic
+        @AfterAll
+        fun closeKvs() {
+            kvs.close()
+        }
+
     }
 
 }
@@ -24,7 +27,7 @@ abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
 internal class StringIndexedKeyValueStoreTest: AbstractIndexedKeyValueStoreTest<String, String>() {
 
     @ExperimentalSerializationApi
-    override fun instances() = kvs!!.stringKeyValueStores()
+    override fun instances() = kvs.stringKeyValueStores()
 
     override fun nextKey() = uniqueGenerator.getAndIncrement()
             .toString()
@@ -36,7 +39,7 @@ internal class StringIndexedKeyValueStoreTest: AbstractIndexedKeyValueStoreTest<
 internal class BinaryIndexedKeyValueStoreTest: AbstractIndexedKeyValueStoreTest<ByteArray, ByteArray>() {
 
     @ExperimentalSerializationApi
-    override fun instances() = kvs!!.binaryKeyValueStores()
+    override fun instances() = kvs.binaryKeyValueStores()
 
     override fun nextKey() = uniqueGenerator.getAndIncrement()
             .toString()

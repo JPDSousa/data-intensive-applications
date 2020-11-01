@@ -1,17 +1,19 @@
 package org.example.log
 
+import org.example.TestInstance
 import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import java.util.concurrent.atomic.AtomicLong
 
-internal class BinaryLogTest: LogTest<ByteArray> {
+internal class LogEncoderTest: LogTest<String> {
 
     private val uniqueGenerator = AtomicLong()
 
-    override fun instances() = logs.binaryInstances()
+    override fun instances() = logs.stringEncodedInstances()
 
-    override fun nextValue(): ByteArray = uniqueGenerator.getAndIncrement()
+    override fun nextValue() = uniqueGenerator.getAndIncrement()
             .toString()
-            .toByteArray()
 
     companion object {
 
@@ -25,5 +27,4 @@ internal class BinaryLogTest: LogTest<ByteArray> {
         }
 
     }
-
 }

@@ -1,6 +1,7 @@
 package org.example.kv
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import org.apache.commons.io.FileUtils
 import org.example.TestInstance
 import org.example.index.Indexes
 import org.example.log.Logs
@@ -18,33 +19,26 @@ class KeyValueStores: Closeable {
     private var resources = Stack<Path>()
 
     @ExperimentalSerializationApi
-    fun binaryKeyValueStores(): Sequence<TestInstance<KeyValueStore<ByteArray, ByteArray>>> {
+    fun binaryKeyValueStores(): Sequence<TestInstance<KeyValueStore<ByteArray, ByteArray>>> = sequence {
+        for (index in indexes.nonComparableInstances<ByteArray>()) {
 
-        val indexes = indexes.instances<ByteArray>().toList()
-        val stringLogs = logs.stringInstances().toList()
-        val binaryLogs = logs.binaryInstances().toList()
-
-        return sequence {
-            for (index in indexes) {
-
-                for (stringLog in stringLogs) {
-                    val name = "Indexed Key Value Store ~ ${index.name} ~ ${stringLog.name}"
-                    yield(TestInstance(name, factory.createBinaryKeyValueStore(
-                            index.instance,
-                            stringLog.instance
-                    )))
-                }
-
-                for (binaryLog in binaryLogs) {
-                    val name = "Indexed Key Value Store ~ ${index.name} ~ ${binaryLog.name}"
-                    yield(TestInstance(name, factory.createBinaryKeyValueStore(
-                            index.instance,
-                            binaryLog.instance
-                    )))
-                }
+            for (stringLog in logs.stringInstances()) {
+                val name = "Indexed Key Value Store ~ ${index.name} ~ ${stringLog.name}"
+                yield(TestInstance(name, factory.createBinaryKeyValueStore(
+                        index.instance,
+                        stringLog.instance
+                )))
             }
-            yieldAll(binarySegmentedKeyValueStores())
+
+            for (binaryLog in logs.binaryInstances()) {
+                val name = "Indexed Key Value Store ~ ${index.name} ~ ${binaryLog.name}"
+                yield(TestInstance(name, factory.createBinaryKeyValueStore(
+                        index.instance,
+                        binaryLog.instance
+                )))
+            }
         }
+        yieldAll(binarySegmentedKeyValueStores())
     }
 
     fun binarySegmentedKeyValueStores(): Sequence<TestInstance<KeyValueStore<ByteArray, ByteArray>>> {
@@ -99,7 +93,7 @@ class KeyValueStores: Closeable {
         indexes.close()
 
         while (resources.isNotEmpty()) {
-            resources.pop()?.let { delete(it) }
+            resources.pop()?.let { FileUtils.deleteDirectory(it.toFile()) }
         }
     }
 

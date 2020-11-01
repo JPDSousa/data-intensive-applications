@@ -1,6 +1,7 @@
 package org.example.kv
 
 import org.example.TestInstance
+import org.example.assertPossiblyArrayEquals
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
@@ -29,7 +30,7 @@ interface KeyValueStoreTest<K, V> {
             val expected = nextValue()
 
             kv.put(key, expected)
-            assertEquals(expected, kv.get(key))
+            assertPossiblyArrayEquals(expected, kv.get(key))
         }
     }.asStream()
 
@@ -55,7 +56,7 @@ interface KeyValueStoreTest<K, V> {
             kv.put(key, old)
             kv.put(key, new)
 
-            assertEquals(new, kv.get(key))
+            assertPossiblyArrayEquals(new, kv.get(key))
         }
     }.asStream()
 
@@ -74,7 +75,7 @@ interface KeyValueStoreTest<K, V> {
             kv.put(key2, value2)
             kv.delete(key1)
             assertNull(kv.get(key1))
-            assertEquals(kv.get(key2), value2)
+            assertPossiblyArrayEquals(kv.get(key2), value2)
         }
     }.asStream()
 
@@ -85,6 +86,6 @@ internal class GetAssertion<K, V>(private val kv: KeyValueStore<K, V>,
                             private val expected: V): Executable {
 
     override fun execute() {
-        assertEquals(expected, kv.get(key))
+        assertPossiblyArrayEquals(expected, kv.get(key))
     }
 }

@@ -32,7 +32,7 @@ class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log
         }
 
         val offsets = entries.runningFold(size, { acc, line ->
-            acc + line.byteLength()
+            acc + line.byteLength() + lineSeparator().byteLength()
         })
         write(path, entries, charset, CREATE, APPEND)
 

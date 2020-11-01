@@ -98,7 +98,7 @@ private class BinaryResources(
             .let { createFile(it) }
             .let { BinaryLog(it) }
             .let { indexFactory.createBinaryLogEncoder<ByteArray>(it) }
-            .let { indexFactory.createTreeIndex(it) }
+            .let { indexFactory.createHashIndex(it) }
 
     override fun createEncoder() = BinaryEncoder({ it }, { it })
 

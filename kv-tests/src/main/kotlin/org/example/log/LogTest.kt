@@ -1,6 +1,7 @@
 package org.example.log
 
 import org.example.TestInstance
+import org.example.assertPossiblyArrayEquals
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
@@ -29,24 +30,54 @@ interface LogTest<T> {
         }
     }.asStream()
 
-    @TestFactory fun `append should be readable`() = instances().map { case ->
+    @TestFactory fun `single append should be readable`() = instances().map { case ->
         dynamicTest(case.name) {
             val log = case.instance
             val expected = nextValue()
             log.append(expected)
 
-            log.useEntries {
-                val items = it.toList()
-                assertEquals(items.size, 1)
+            val items = log.useEntries { it.toList() }
 
-                val actual = items[0]
-                if (expected is ByteArray && actual is ByteArray) {
-                    assertArrayEquals(expected, actual)
-                } else {
-                    assertEquals(expected, actual)
-                }
-            }
+            assertEquals(items.size, 1)
+
+            val actual = items[0]
+            assertPossiblyArrayEquals(expected, actual)
         }
     }.asStream()
+
+    @TestFactory fun `multiple appends should be readable`() = instances().map { case ->
+        dynamicTest(case.name) {
+
+            multipleReadWriteCycle(case.instance) { log, values -> values.forEach { log.append(it) }}
+
+        }
+    }.asStream()
+
+    @TestFactory fun `atomic multiple appends (appendAll) should be readable`() = instances().map { case ->
+        dynamicTest(case.name) {
+            multipleReadWriteCycle(case.instance) { log, values -> log.appendAll(values) }
+        }
+    }.asStream()
+
+    fun multipleReadWriteCycle(log: Log<T>, append: (Log<T>, List<T>) -> Unit) {
+
+        val expectedList = sequence<T> { nextValue() }
+                .take(50)
+                .toList()
+
+        append(log, expectedList)
+
+        val actualList = log.useEntries { it.toList() }
+
+        assertEquals(expectedList.size, actualList.size)
+
+        expectedList.zip(actualList).forEach {
+
+            val expected = it.first
+            val actual = it.second
+
+            assertPossiblyArrayEquals(expected, actual)
+        }
+    }
 
 }

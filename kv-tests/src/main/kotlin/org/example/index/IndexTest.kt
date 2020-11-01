@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
+import kotlin.streams.asStream
 
 @Suppress("FunctionName")
 interface IndexTest<K> {
@@ -24,7 +25,7 @@ interface IndexTest<K> {
             index.putOffset(key, expected)
             assertEquals(expected, index.getOffset(key))
         }
-    }
+    }.asStream()
 
     @TestFactory fun `absent entry has no offset`() = instances().map {
         dynamicTest(it.name) {
@@ -32,7 +33,7 @@ interface IndexTest<K> {
 
             assertNull(index.getOffset(nextKey()))
         }
-    }
+    }.asStream()
 
     @TestFactory fun `reads do not delete entries`() = instances().map {
         dynamicTest(it.name) {
@@ -46,7 +47,7 @@ interface IndexTest<K> {
             // second read asserts that the value is still there
             assertEquals(expected, index.getOffset(key))
         }
-    }
+    }.asStream()
 
     @TestFactory fun `sequential writes act as updates`() = instances().map {
         dynamicTest(it.name) {
@@ -59,7 +60,7 @@ interface IndexTest<K> {
 
             assertEquals(expected, index.getOffset(key))
         }
-    }
+    }.asStream()
 
     @TestFactory fun `keys are isolated`() = instances().map {
         dynamicTest(it.name) {
@@ -75,5 +76,5 @@ interface IndexTest<K> {
             assertEquals(value1, index.getOffset(key1))
             assertEquals(value2, index.getOffset(key2))
         }
-    }
+    }.asStream()
 }

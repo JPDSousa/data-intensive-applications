@@ -2,24 +2,42 @@ package org.example.log
 
 import org.example.TestInstance
 import java.io.Closeable
-import java.nio.file.Files
+import java.nio.file.Files.createTempFile
 import java.nio.file.Files.deleteIfExists
+import java.nio.file.Path
+import java.util.*
 
 class Logs: Closeable {
 
-    private val linePath = Files.createTempFile("log-", ".csv")
-    private val binaryPath = Files.createTempFile("log-", ".bin")
+    private val resources = Stack<Path>()
     private val factory = LogFactory()
 
-    fun stringInstances() = sequenceOf(TestInstance("Line Log", LineLog(linePath))) + binaryInstances().map {
+    @Suppress("USELESS_CAST")
+    fun lineLogInstances() = createTempFile("log-", ".csv")
+            .let { resources.push(it) }
+            .let { LineLog(it) as Log<String> }
+            .let { TestInstance("Line Log", it) }
+            .let { sequenceOf(it) }
+
+    fun stringEncodedInstances() = binaryInstances().map {
         TestInstance("Encoder ~ ${it.name}", factory.stringEncoder(it.instance) as Log<String>)
     }
 
-    fun binaryInstances() = sequenceOf(TestInstance("Binary Log", BinaryLog(binaryPath)))
+    fun stringInstances() = lineLogInstances() + stringEncodedInstances()
+
+    @Suppress("USELESS_CAST")
+    fun binaryInstances() = createTempFile("log-", ".bin")
+            .let { resources.push(it) }
+            .let { BinaryLog(it) as Log<ByteArray> }
+            .let { TestInstance("Binary Log", it) }
+            .let { sequenceOf(it) }
 
     override fun close() {
-        deleteIfExists(this.linePath)
-        deleteIfExists(this.binaryPath)
+
+        while (resources.isNotEmpty()) {
+            deleteIfExists(resources.pop())
+        }
+
     }
 
 }

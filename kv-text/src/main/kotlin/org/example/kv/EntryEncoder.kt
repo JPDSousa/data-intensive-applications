@@ -41,20 +41,16 @@ class BinaryEncoder<E>(private val encoder: (ByteArray) -> E,
     override fun decode(entry: E): Pair<ByteArray, ByteArray> {
         val buffer = ByteBuffer.wrap(decoder(entry))
 
-        var offset = 0
+        val keySize = buffer.getInt(0)
 
-        val keySize = buffer.getInt(offset)
-        offset += 4
+        val valueSize = buffer.getInt(4)
 
-        val valueSize = buffer.getInt(offset)
-        offset += 4
-
+        buffer.position(8)
         val key = ByteArray(keySize)
-        buffer.get(key, offset, keySize)
-        offset += keySize
+        buffer.get(key, 0, keySize)
 
         val value = ByteArray(valueSize)
-        buffer.get(value, offset, valueSize)
+        buffer.get(value, 0, valueSize)
 
         return Pair(key, value)
     }
