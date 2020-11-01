@@ -8,6 +8,7 @@ import java.nio.file.Files.*
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
+import java.util.zip.CRC32
 
 class BinaryLog(private val path: Path): Log<ByteArray> {
 
@@ -19,8 +20,7 @@ class BinaryLog(private val path: Path): Log<ByteArray> {
 
         path.writeOnly { it.writeEntry(entry) }
 
-        // header size
-        size += 4 + entry.size
+        size += headerSize + entry.size
 
         return offset
     }
@@ -31,7 +31,7 @@ class BinaryLog(private val path: Path): Log<ByteArray> {
             return emptyList()
         }
 
-        val offsets = entries.runningFold(size, { acc, entry -> acc + 4 + entry.size })
+        val offsets = entries.runningFold(size, { acc, entry -> acc + headerSize + entry.size })
 
         path.writeOnly { stream ->
             entries.forEach {
@@ -44,13 +44,9 @@ class BinaryLog(private val path: Path): Log<ByteArray> {
         return listOf(0L) + offsets.subList(0, offsets.size - 1)
     }
 
-    override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R {
-
-        if(path.size() == 0L) {
-            return block(emptySequence())
-        }
-
-        return path.readOnly {
+    override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R = when {
+        path.size() == 0L -> block(emptySequence())
+        else -> path.readOnly {
             if (offset > 0) {
                 it.seek(offset)
             }
@@ -58,13 +54,9 @@ class BinaryLog(private val path: Path): Log<ByteArray> {
         }
     }
 
-    override fun <R> useEntriesWithOffset(offset: Long, block: (Sequence<EntryWithOffset<ByteArray>>) -> R): R {
-
-        if(path.size() == 0L) {
-            return block(emptySequence())
-        }
-
-        return path.readOnly {
+    override fun <R> useEntriesWithOffset(offset: Long, block: (Sequence<EntryWithOffset<ByteArray>>) -> R): R = when {
+        path.size() == 0L -> block(emptySequence())
+        else -> path.readOnly {
             if (offset > 0) {
                 it.seek(offset)
             }
@@ -76,6 +68,12 @@ class BinaryLog(private val path: Path): Log<ByteArray> {
 
     override fun clear() { delete(path) }
 
+    companion object {
+
+        // entrySize + checksum
+        val headerSize = Int.SIZE_BYTES + Long.SIZE_BYTES
+    }
+
 }
 
 private abstract class AbstractEntryIterator<T>(private val raf: RandomAccessFile): Iterator<T> {
@@ -85,12 +83,7 @@ private abstract class AbstractEntryIterator<T>(private val raf: RandomAccessFil
 
 private class EntryIterator(private val raf: RandomAccessFile): AbstractEntryIterator<ByteArray>(raf) {
 
-    override fun next(): ByteArray {
-        val size = raf.readInt()
-        val content = ByteArray(size)
-        raf.read(content)
-        return content
-    }
+    override fun next() = raf.readEntry()
 
 }
 
@@ -99,19 +92,37 @@ private class EntryWithOffsetIterator(private val raf: RandomAccessFile):
 
     override fun next(): EntryWithOffset<ByteArray> {
         val pointer = raf.filePointer
-        val size = raf.readInt()
-        val content = ByteArray(size)
-        raf.read(content)
-        return EntryWithOffset(pointer, content)
+        return EntryWithOffset(pointer, raf.readEntry())
     }
 
 }
 
 private fun OutputStream.writeEntry(entry: ByteArray) {
-    val header = ByteBuffer.allocate(4)
+
+    val header = ByteBuffer.allocate(BinaryLog.headerSize)
+
+    val checksum = CRC32()
+    checksum.update(entry)
+    header.putLong(checksum.value)
+
     header.putInt(entry.size)
     write(header.array())
     write(entry)
+}
+
+private fun RandomAccessFile.readEntry(): ByteArray {
+
+    val checksum = readLong()
+
+    val size = readInt()
+    val content = ByteArray(size)
+    read(content)
+
+    val hash = CRC32()
+    hash.update(content)
+    require(checksum == hash.value) { "Checksum doesn't match for entry $content (expected: $checksum, got: $hash)" }
+
+    return content
 }
 
 private fun <T> Path.readOnly(block: (RandomAccessFile) -> T): T = RandomAccessFile(toFile(), "r")
