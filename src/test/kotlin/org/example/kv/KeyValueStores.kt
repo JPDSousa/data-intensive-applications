@@ -7,7 +7,6 @@ import org.example.index.Indexes
 import org.example.log.Logs
 import java.io.Closeable
 import java.nio.file.Files
-import java.nio.file.Files.delete
 import java.nio.file.Path
 import java.util.*
 

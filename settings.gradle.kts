@@ -8,8 +8,3 @@
  */
 
 rootProject.name = "data-intensive-applications"
-include("kv-api")
-include("kv-text")
-include("kv-tests")
-include("kv-memory")
-include("kv-index")
