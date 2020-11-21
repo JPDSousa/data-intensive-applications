@@ -4,14 +4,16 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.example.lsm.LSMStructure
+import org.example.lsm.SegmentFactory
 import java.util.concurrent.Executors
 
-internal class SegmentedKeyValueStore<E, K, V>(segmentFactory: SegmentFactory<E, K, V>,
-                                               private val tombstone: V,
-                                               segmentSize: Long = 1024 * 1024,
-                                               private val compactCycle: Long = 1000): KeyValueStore<K, V> {
+internal class LSMKeyValueStore<E, K, V>(segmentFactory: SegmentFactory<IndexedKeyValueStore<E, K, V>>,
+                                         private val tombstone: V,
+                                         segmentSize: Long = 1024 * 1024,
+                                         private val compactCycle: Long = 1000): KeyValueStore<K, V> {
 
-    private val segments = Segments(segmentFactory, segmentSize)
+    private val segments = LSMStructure(segmentFactory, segmentSize, KeyValueLogMergeStrategy(segmentFactory))
     @Volatile
     private var opsWithoutCompact: Long = 0
 
@@ -20,22 +22,23 @@ internal class SegmentedKeyValueStore<E, K, V>(segmentFactory: SegmentFactory<E,
         GlobalScope.launch(dispatcher) {
             while (true) {
                 delay(1000 * 60)
-                val opsWithoutCompact = this@SegmentedKeyValueStore.opsWithoutCompact
+                val opsWithoutCompact = this@LSMKeyValueStore.opsWithoutCompact
                 if (opsWithoutCompact >= compactCycle) {
                     segments.compact()
                     // this is possibly not thread safe
-                    this@SegmentedKeyValueStore.opsWithoutCompact -= opsWithoutCompact
+                    this@LSMKeyValueStore.opsWithoutCompact -= opsWithoutCompact
                 }
             }
         }
     }
 
     override fun put(key: K, value: V) {
-        segments.openSegment().put(key, value)
+        segments.openSegment().structure.put(key, value)
     }
 
     override fun get(key: K): V? {
-        for (kvs in segments) {
+        for (segment in segments) {
+            val kvs = segment.structure
             val value = kvs.getWithTombstone(key)
 
             if (value == tombstone) {
@@ -50,7 +53,7 @@ internal class SegmentedKeyValueStore<E, K, V>(segmentFactory: SegmentFactory<E,
     }
 
     override fun delete(key: K) {
-        this.segments.openSegment().delete(key)
+        this.segments.openSegment().structure.delete(key)
     }
 
     override fun clear() = segments.clear()

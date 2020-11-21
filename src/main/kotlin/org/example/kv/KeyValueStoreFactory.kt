@@ -6,7 +6,6 @@ import org.example.log.BinaryLog
 import org.example.log.Index
 import org.example.log.Log
 import java.nio.charset.Charset
-import java.nio.charset.StandardCharsets
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Files.createFile
 import java.nio.file.Path
@@ -63,20 +62,23 @@ class KeyValueStoreFactory {
         )
     }
 
-    fun createSegmentedStringKeyValueStore(kvDir: Path): KeyValueStore<String, String> = SegmentedKeyValueStore(
-            SegmentFactory(StringResources(kvDir, tombstoneStr)),
-            tombstoneStr
+    fun createSegmentedStringKeyValueStore(kvDir: Path): KeyValueStore<String, String> = LSMKeyValueStore(
+            LSMSegmentFactory(StringResources(kvDir, tombstoneStr), segmentSize),
+            tombstoneStr,
+            segmentSize
     )
 
-    fun createSegmentedBinaryKeyValueStore(kvDir: Path): KeyValueStore<ByteArray, ByteArray> = SegmentedKeyValueStore(
-            SegmentFactory(BinaryResources(kvDir, tombstoneByte)),
-            tombstoneByte
+    fun createSegmentedBinaryKeyValueStore(kvDir: Path): KeyValueStore<ByteArray, ByteArray> = LSMKeyValueStore(
+            LSMSegmentFactory(BinaryResources(kvDir, tombstoneByte), segmentSize),
+            tombstoneByte,
+            segmentSize
     )
 
     companion object {
 
         private const val tombstoneStr = "tombstone"
         private val tombstoneByte = ByteArray(0)
+        private const val segmentSize: Long = 1024 * 1024
 
     }
 }

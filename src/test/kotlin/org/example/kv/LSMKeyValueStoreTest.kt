@@ -2,14 +2,14 @@ package org.example.kv
 
 import java.util.concurrent.atomic.AtomicLong
 
-internal abstract class SegmentedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
+internal abstract class LSMKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
 
     internal val kvs = KeyValueStores()
     internal val uniqueGenerator = AtomicLong()
 
 }
 
-internal class StringSegmentedKeyValueStoreTest: SegmentedKeyValueStoreTest<String, String>() {
+internal class StringLSMKeyValueStoreTest: LSMKeyValueStoreTest<String, String>() {
 
     override fun instances() = kvs.stringSegmentedKeyValueStores()
 
@@ -22,7 +22,7 @@ internal class StringSegmentedKeyValueStoreTest: SegmentedKeyValueStoreTest<Stri
 
 }
 
-internal class BinarySegmentedKeyValueStoreTest: SegmentedKeyValueStoreTest<ByteArray, ByteArray>() {
+internal class BinaryLSMKeyValueStoreTest: LSMKeyValueStoreTest<ByteArray, ByteArray>() {
 
     override fun instances() = kvs.binarySegmentedKeyValueStores()
 
