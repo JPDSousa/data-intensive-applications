@@ -126,3 +126,10 @@ private fun RandomAccessFile.generateSequenceWithOffset() = generateSequence {
 
     line?.let { EntryWithOffset(pointer, it) }
 }.asStream().onClose { this.close() }
+
+
+class LineLogFactory: LogFactory<String> {
+
+    override fun create(logPath: Path): Log<String> = LineLog(logPath)
+
+}

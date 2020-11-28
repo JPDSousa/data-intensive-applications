@@ -1,4 +1,4 @@
-package org.example.log
+package org.example.index
 
 import kotlinx.serialization.Serializable
 
@@ -20,3 +20,8 @@ interface Index<K> {
 
 @Serializable
 data class IndexEntry<K>(val key: K, val offset: Long)
+
+interface IndexFactory<K> {
+
+    fun create(indexName: String): Index<K>
+}

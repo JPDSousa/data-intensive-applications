@@ -136,3 +136,9 @@ private fun Path.size(): Long = when {
     isRegularFile(this) -> readOnly { it.length() }
     else -> 0L
 }
+
+class BinaryLogFactory: LogFactory<ByteArray> {
+
+    override fun create(logPath: Path) = BinaryLog(logPath)
+
+}

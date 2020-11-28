@@ -1,7 +1,5 @@
 package org.example.index
 
-import org.example.log.Index
-import org.example.log.IndexEntry
 import java.util.*
 
 internal class TreeIndex<K: Comparable<K>>(private val index: MutableMap<K, Long> = TreeMap<K, Long>()): Index<K> {
@@ -17,4 +15,10 @@ internal class TreeIndex<K: Comparable<K>>(private val index: MutableMap<K, Long
     override fun getOffset(key: K) = index[key]
 
     override fun entries() = index.map { IndexEntry(it.key, it.value) }
+}
+
+class TreeIndexFactory<K: Comparable<K>>: IndexFactory<K> {
+
+    override fun create(indexName: String): Index<K> = TreeIndex()
+
 }

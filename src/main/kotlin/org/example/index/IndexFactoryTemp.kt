@@ -3,12 +3,10 @@ package org.example.index
 import kotlinx.serialization.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
-import org.example.log.Index
-import org.example.log.IndexEntry
 import org.example.log.Log
 import org.example.log.LogEncoder
 
-class IndexFactory {
+class IndexFactoryTemp {
 
     fun <K : Comparable<K>> createTreeIndex(log: Log<IndexEntry<K>>? = null): Index<K> {
 

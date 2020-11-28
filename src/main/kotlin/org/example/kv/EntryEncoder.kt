@@ -6,6 +6,8 @@ interface EntryEncoder<E, K, V> {
 
     fun encode(key: K, value: V): E
 
+    fun encode(entry: Pair<K, V>) = encode(entry.first, entry.second)
+
     fun decode(entry: E): Pair<K, V>
 
 }

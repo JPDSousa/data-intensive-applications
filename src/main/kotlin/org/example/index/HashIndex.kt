@@ -1,8 +1,5 @@
 package org.example.index
 
-import org.example.log.Index
-import org.example.log.IndexEntry
-
 class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): Index<K> {
 
     override fun putOffset(key: K, offset: Long) {

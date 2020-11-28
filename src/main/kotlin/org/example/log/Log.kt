@@ -1,5 +1,7 @@
 package org.example.log
 
+import java.nio.file.Path
+
 interface Log<T> {
 
     fun append(entry: T): Long
@@ -17,3 +19,9 @@ interface Log<T> {
 }
 
 data class EntryWithOffset<T>(val offset: Long, val entry: T)
+
+interface LogFactory<T> {
+
+    fun create(logPath: Path): Log<T>
+
+}

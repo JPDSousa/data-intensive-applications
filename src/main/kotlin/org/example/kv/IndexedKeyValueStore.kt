@@ -1,41 +1,29 @@
 package org.example.kv
 
-import org.example.log.EntryWithOffset
-import org.example.log.Index
-import org.example.log.IndexEntry
+import org.example.index.Index
+import org.example.index.IndexEntry
+import org.example.index.IndexFactory
 import org.example.log.Log
 
-internal class IndexedKeyValueStore<E, K, V>(private val index: Index<K>,
-                                             internal val log: Log<E>,
-                                             private val encoder: EntryEncoder<E, K, V>,
-                                             private val tombstone: V): KeyValueStore<K, V> {
+internal class IndexedKeyValueStore<K, V>(
+        private val index: Index<K>,
+        private val tombstone: V,
+        private val logKV: LogBasedKeyValueStore<K, V>): LogBasedKeyValueStore<K, V> by logKV {
 
     override fun put(key: K, value: V) {
 
-        val offset = putAndGetOffset(key, value)
+        val offset = logKV.append(key, value)
         this.index.putOffset(key, offset)
     }
 
     override fun putAll(entries: Map<K, V>) {
 
         if (entries.isNotEmpty()) {
-            val content = ArrayList<E>(entries.size)
-            val keys = ArrayList<K>(entries.size)
+            val offsets = logKV.appendAll(entries)
 
-            for (entry in entries) {
-                content.add(encoder.encode(entry.key, entry.value))
-                keys.add(entry.key)
-            }
-
-            val offsets = log.appendAll(content)
-
-            index.putAllOffsets(keys.zipIndex(offsets))
+            index.putAllOffsets(entries.keys.zipIndex(offsets))
         }
     }
-
-    private fun putAndGetOffset(key: K, value: V) = log.append(encoder.encode(key, value))
-
-    private fun get(key: K, offset: Long): V? = log.useEntries(offset) { it.findLastKey(key) }
 
     private fun getRaw(key: K, nullifyTombstone: Boolean): V? {
 
@@ -46,40 +34,26 @@ internal class IndexedKeyValueStore<E, K, V>(private val index: Index<K>,
         }
 
         if (offset != null) {
-            return get(key, offset)
+            return logKV.get(key, offset)
         }
 
-        return getWithOffset(key)
-                ?.also { index.putOffset(key, it.first) }
-                ?.second
+        return logKV.getWithOffset(key)
+                ?.also { index.putOffset(key, it.offset) }
+                ?.value
     }
 
-    internal fun getWithTombstone(key: K) = getRaw(key, false)
+    override fun getWithTombstone(key: K) = getRaw(key, false)
 
     override fun get(key: K) = getRaw(key, true)
 
     override fun delete(key: K) {
-        log.append(encoder.encode(key, tombstone))
+        logKV.delete(key)
         index.putOffset(key, tombstoneIndex)
     }
 
-    override fun clear() = log.clear()
+    override fun clear() = logKV.clear()
 
-    internal fun <T> forEachEntry(block: (Pair<K, V>) -> T) = log.useEntries {
-        it.forEach { entry -> block(encoder.decode(entry)) }
-    }
-
-    private fun getWithOffset(key: K): Pair<Long, V>? = log.useEntriesWithOffset { it.findLastKey(key) }
-
-    private fun Sequence<E>.findLastKey(key: K): V? = this
-            .map { encoder.decode(it) }
-            .findLast { keyEquals(key, it.first) }?.second
-
-    private fun Sequence<EntryWithOffset<E>>.findLastKey(key: K) : Pair<Long, V>? = this
-            .map { Pair(it.offset, encoder.decode(it.entry)) }
-            .findLast { keyEquals(key, it.second.first) }?.let { Pair(it.first, it.second.second) }
-
-    private fun ArrayList<K>.zipIndex(other: Collection<Long>): Iterable<IndexEntry<K>> {
+    private fun Set<K>.zipIndex(other: Collection<Long>): Iterable<IndexEntry<K>> {
 
         val indexes = ArrayList<IndexEntry<K>>(size)
         val thisIterator = iterator()
@@ -97,11 +71,14 @@ internal class IndexedKeyValueStore<E, K, V>(private val index: Index<K>,
     }
 }
 
-private fun keyEquals(val1: Any?, val2: Any?): Boolean {
+class IndexedKeyValueStoreFactory<E, K, V>(private val indexFactory: IndexFactory<K>,
+                                           private val tombstone: V,
+                                           private val innerKeyValueStoreFactory: LogBasedKeyValueStoreFactory<E, K, V>)
+    : LogBasedKeyValueStoreFactory<E, K, V> {
 
-    if (val1 is ByteArray && val2 is ByteArray) {
-        return val1.contentEquals(val2)
-    }
-
-    return val1 == val2
+    override fun create(log: Log<E>): LogBasedKeyValueStore<K, V> = IndexedKeyValueStore(
+            indexFactory.create(),
+            tombstone,
+            innerKeyValueStoreFactory.create(log)
+    )
 }
