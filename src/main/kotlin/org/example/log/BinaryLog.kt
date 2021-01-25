@@ -10,7 +10,7 @@ import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
 import java.util.zip.CRC32
 
-class BinaryLog(private val path: Path): Log<ByteArray> {
+private class BinaryLog(private val path: Path): Log<ByteArray> {
 
     private var size = path.size()
 
@@ -139,6 +139,6 @@ private fun Path.size(): Long = when {
 
 class BinaryLogFactory: LogFactory<ByteArray> {
 
-    override fun create(logPath: Path) = BinaryLog(logPath)
+    override fun create(logPath: Path): Log<ByteArray> = BinaryLog(logPath)
 
 }

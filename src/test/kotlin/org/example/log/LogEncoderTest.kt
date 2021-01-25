@@ -1,6 +1,9 @@
 package org.example.log
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import org.example.TestInstance
+import org.example.TestResources
+import org.example.encoder.Encoders
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -10,6 +13,7 @@ internal class LogEncoderTest: LogTest<String> {
 
     private val uniqueGenerator = AtomicLong()
 
+    @ExperimentalSerializationApi
     override fun instances() = logs.stringEncodedInstances()
 
     override fun nextValue() = uniqueGenerator.getAndIncrement()
@@ -18,12 +22,15 @@ internal class LogEncoderTest: LogTest<String> {
     companion object {
 
         @JvmStatic
-        private val logs = Logs()
+        private val resources = TestResources()
+
+        @JvmStatic
+        private val logs = Logs(resources, LogFactories(Encoders()))
 
         @JvmStatic
         @AfterAll
-        fun closeLogs() {
-            logs.close()
+        fun closeResources() {
+            resources.close()
         }
 
     }

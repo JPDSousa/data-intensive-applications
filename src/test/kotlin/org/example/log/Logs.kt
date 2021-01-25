@@ -1,43 +1,31 @@
 package org.example.log
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import org.example.TestInstance
-import java.io.Closeable
-import java.nio.file.Files.createTempFile
-import java.nio.file.Files.deleteIfExists
-import java.nio.file.Path
-import java.util.*
+import org.example.TestResources
 
-class Logs: Closeable {
+class Logs(private val resources: TestResources, private val logFactories: LogFactories) {
 
-    private val resources = Stack<Path>()
-    private val factory = LogFactory()
-
-    @Suppress("USELESS_CAST")
-    fun lineLogInstances() = createTempFile("log-", ".csv")
-            .let { resources.push(it) }
-            .let { LineLog(it) as Log<String> }
-            .let { TestInstance("Line Log", it) }
-            .let { sequenceOf(it) }
-
-    fun stringEncodedInstances() = binaryInstances().map {
-        TestInstance("Encoder ~ ${it.name}", factory.stringEncoder(it.instance) as Log<String>)
+    fun lineLogInstances() = logFactories.lineLogInstances().map {
+        TestInstance(it.name) {
+            it.instance().create(resources.allocateTempFile("log-", ".csv"))
+        }
     }
 
+    @ExperimentalSerializationApi
+    fun stringEncodedInstances(): Sequence<TestInstance<Log<String>>> = logFactories.stringEncodedInstances().map {
+        TestInstance(it.name) {
+            it.instance().create(resources.allocateTempFile("log-", ".log"))
+        }
+    }
+
+    @ExperimentalSerializationApi
     fun stringInstances() = lineLogInstances() + stringEncodedInstances()
 
-    @Suppress("USELESS_CAST")
-    fun binaryInstances() = createTempFile("log-", ".bin")
-            .let { resources.push(it) }
-            .let { BinaryLog(it) as Log<ByteArray> }
-            .let { TestInstance("Binary Log", it) }
-            .let { sequenceOf(it) }
-
-    override fun close() {
-
-        while (resources.isNotEmpty()) {
-            deleteIfExists(resources.pop())
+    fun binaryInstances() = logFactories.binaryLogInstances().map {
+        TestInstance(it.name) {
+            it.instance().create(resources.allocateTempFile("log-", ".bin"))
         }
-
     }
 
 }

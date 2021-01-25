@@ -1,9 +1,7 @@
 package org.example.kv.lsm
 
-import org.example.kv.IndexedKeyValueStore
 import org.example.kv.LogBasedKeyValueStore
 import org.example.kv.LogBasedKeyValueStoreFactory
-import org.example.index.Index
 import org.example.log.LogFactory
 import org.example.lsm.Segment
 import org.example.lsm.SegmentFactory
@@ -39,18 +37,3 @@ internal class LSMSegmentFactory<E, K, V>(private val kvDir: Path,
             .let { LSMSegment(it, segmentThreshold) }
 }
 
-internal interface SegmentResourcesFactory<K, V> {
-
-    fun createIndex(segmentId: String): Index<K>
-
-    fun createLogBasedKeyValueStore(segmentId: String): LogBasedKeyValueStore<K, V>
-
-    val tombstone: V
-
-    fun createKeyValueStore(segmentId: String) = IndexedKeyValueStore(
-            createIndex(segmentId),
-            tombstone,
-            createLogBasedKeyValueStore(segmentId)
-    )
-
-}

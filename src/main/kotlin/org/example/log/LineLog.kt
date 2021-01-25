@@ -13,7 +13,7 @@ import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
 // TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
-class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log<String> {
+private class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log<String> {
 
     private var size = if (exists(path)) size(path) else 0L
 

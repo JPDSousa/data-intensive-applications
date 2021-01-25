@@ -4,8 +4,9 @@ import org.example.index.Index
 import org.example.index.IndexEntry
 import org.example.index.IndexFactory
 import org.example.log.Log
+import java.util.concurrent.atomic.AtomicLong
 
-internal class IndexedKeyValueStore<K, V>(
+private class IndexedKeyValueStore<K, V>(
         private val index: Index<K>,
         private val tombstone: V,
         private val logKV: LogBasedKeyValueStore<K, V>): LogBasedKeyValueStore<K, V> by logKV {
@@ -73,12 +74,13 @@ internal class IndexedKeyValueStore<K, V>(
 
 class IndexedKeyValueStoreFactory<E, K, V>(private val indexFactory: IndexFactory<K>,
                                            private val tombstone: V,
-                                           private val innerKeyValueStoreFactory: LogBasedKeyValueStoreFactory<E, K, V>)
+                                           private val innerKVSFactory: LogBasedKeyValueStoreFactory<E, K, V>,
+                                           private val nameGenerator: AtomicLong = AtomicLong(0))
     : LogBasedKeyValueStoreFactory<E, K, V> {
 
     override fun create(log: Log<E>): LogBasedKeyValueStore<K, V> = IndexedKeyValueStore(
-            indexFactory.create(),
+            indexFactory.create("Index${nameGenerator.getAndIncrement()}"),
             tombstone,
-            innerKeyValueStoreFactory.create(log)
+            innerKVSFactory.create(log)
     )
 }

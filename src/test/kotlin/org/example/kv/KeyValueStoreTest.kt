@@ -19,13 +19,13 @@ interface KeyValueStoreTest<K, V> {
     
     @TestFactory fun `absent key`() = instances().map { 
         dynamicTest(it.name) {
-            assertNull(it.instance.get(nextKey()))
+            assertNull(it.instance().get(nextKey()))
         }
     }.asStream()
 
     @TestFactory fun `written value should be readable`() = instances().map {
         dynamicTest(it.name) {
-            val kv = it.instance
+            val kv = it.instance()
             val key = nextKey()
             val expected = nextValue()
 
@@ -36,7 +36,7 @@ interface KeyValueStoreTest<K, V> {
 
     @TestFactory fun `multiple keys are isolated`() = instances().map { instance ->
         dynamicTest(instance.name) {
-            val kv = instance.instance
+            val kv = instance.instance()
             val entries = (0..5).associate { Pair(nextKey(), nextValue()) }
 
             kv.putAll(entries)
@@ -48,7 +48,7 @@ interface KeyValueStoreTest<K, V> {
     @TestFactory fun `key update`() = instances().map {
         dynamicTest(it.name) {
 
-            val kv = it.instance
+            val kv = it.instance()
             val key = nextKey()
             val old = nextValue()
             val new = nextValue()
@@ -63,7 +63,7 @@ interface KeyValueStoreTest<K, V> {
     @TestFactory fun `deleted key becomes absent`() = instances().map {
         dynamicTest(it.name) {
 
-            val kv = it.instance
+            val kv = it.instance()
 
             val key1 = nextKey()
             val value1 = nextValue()

@@ -1,5 +1,7 @@
 package org.example.log
 
+import org.example.TestResources
+import org.example.encoder.Encoders
 import org.junit.jupiter.api.AfterAll
 import java.util.concurrent.atomic.AtomicLong
 
@@ -16,12 +18,15 @@ internal class BinaryLogTest: LogTest<ByteArray> {
     companion object {
 
         @JvmStatic
-        private val logs = Logs()
+        private val resources = TestResources()
+
+        @JvmStatic
+        private val logs = Logs(resources, LogFactories(Encoders()))
 
         @JvmStatic
         @AfterAll
-        fun closeLogs() {
-            logs.close()
+        fun closeResources() {
+            resources.close()
         }
 
     }

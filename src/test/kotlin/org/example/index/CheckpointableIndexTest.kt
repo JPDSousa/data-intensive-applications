@@ -1,11 +1,12 @@
 package org.example.index
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.serializer
 import org.example.TestInstance
-import org.example.log.Index
+import org.example.TestResources
+import org.example.encoder.Encoders
+import org.example.log.LogFactories
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import java.util.concurrent.atomic.AtomicLong
 
 internal abstract class AbstractCheckpointableIndexTest<K>: IndexTest<K> {
@@ -15,12 +16,15 @@ internal abstract class AbstractCheckpointableIndexTest<K>: IndexTest<K> {
     companion object {
 
         @JvmStatic
-        internal val indexes = Indexes()
+        internal val resources = TestResources()
+
+        @JvmStatic
+        internal val indexes = Indexes(LogFactories(Encoders()), resources)
 
         @JvmStatic
         @AfterAll
-        fun closeIndexes() {
-            indexes.close()
+        fun closeResources() {
+            resources.close()
         }
 
     }
@@ -30,7 +34,7 @@ internal abstract class AbstractCheckpointableIndexTest<K>: IndexTest<K> {
 internal class CheckpointableStringIndexTest: AbstractCheckpointableIndexTest<String>() {
 
     @ExperimentalSerializationApi
-    override fun instances(): Sequence<TestInstance<Index<String>>> = indexes.instances()
+    override fun instances(): Sequence<TestInstance<Index<String>>> = indexes.instances(serializer())
 
     override fun nextKey() = uniqueGenerator.getAndIncrement().toString()
 
@@ -39,7 +43,7 @@ internal class CheckpointableStringIndexTest: AbstractCheckpointableIndexTest<St
 internal class CheckpointableBinaryIndexTest: AbstractCheckpointableIndexTest<ByteArray>() {
 
     @ExperimentalSerializationApi
-    override fun instances(): Sequence<TestInstance<Index<ByteArray>>> = indexes.nonComparableInstances()
+    override fun instances(): Sequence<TestInstance<Index<ByteArray>>> = indexes.nonComparableInstances(serializer())
 
     override fun nextKey() = uniqueGenerator.getAndIncrement()
             .toString()

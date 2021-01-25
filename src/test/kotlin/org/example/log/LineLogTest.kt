@@ -1,9 +1,9 @@
 package org.example.log
 
+import org.example.TestResources
+import org.example.encoder.Encoders
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.util.concurrent.atomic.AtomicLong
@@ -17,7 +17,7 @@ internal class LineLogTest: LogTest<String> {
     fun `entries should be partitioned by lines`() = instances().map { case ->
         dynamicTest(case.name) {
 
-            val log = case.instance
+            val log = case.instance()
             val entries = (1..100).map { nextValue() }
             val expected = entries.joinToString("\n")
 
@@ -37,12 +37,15 @@ internal class LineLogTest: LogTest<String> {
     companion object {
 
         @JvmStatic
-        private val logs = Logs()
+        private val resources = TestResources()
+
+        @JvmStatic
+        private val logs = Logs(resources, LogFactories(Encoders()))
 
         @JvmStatic
         @AfterAll
-        fun closeLogs() {
-            logs.close()
+        fun closeResources() {
+            resources.close()
         }
 
     }

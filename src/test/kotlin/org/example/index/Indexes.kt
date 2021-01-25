@@ -1,64 +1,86 @@
 package org.example.index
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
 import org.example.TestInstance
-import org.example.log.Index
-import org.example.log.IndexEntry
-import org.example.log.Log
-import org.example.log.Logs
-import java.io.Closeable
+import org.example.TestResources
+import org.example.encoder.JsonStringEncoder
+import org.example.encoder.ProtobufBinaryEncoder
+import org.example.log.LogFactories
+import java.util.concurrent.atomic.AtomicLong
 
-class Indexes: Closeable {
+class Indexes(private val logs: LogFactories, private val resources: TestResources) {
 
-    private val factory = IndexFactory()
-    private val logs = Logs()
-
-    @ExperimentalSerializationApi
-    fun <K : Comparable<K>> instances(): Sequence<TestInstance<Index<K>>> = comparableInstances<K>() +
-            nonComparableInstances()
+    private val generator = AtomicLong()
 
     @ExperimentalSerializationApi
-    fun <K> nonComparableInstances(): Sequence<TestInstance<Index<K>>> {
-
-        val volatileHash = TestInstance<Index<K>>("Hash Index", factory.createHashIndex())
-
-        return sequenceOf(volatileHash) + checkpointableNonComparableIndexes()
-    }
+    fun <K : Comparable<K>> instances(serializer: KSerializer<IndexEntry<K>>): Sequence<TestInstance<Index<K>>>
+            = comparableInstances(serializer) + nonComparableInstances(serializer)
 
     @ExperimentalSerializationApi
-    private fun <K : Comparable<K>> comparableInstances(): Sequence<TestInstance<Index<K>>> {
-        val volatileTree = TestInstance<Index<K>>("Tree Index", factory.createTreeIndex())
+    fun <K> nonComparableInstances(serializer: KSerializer<IndexEntry<K>>): Sequence<TestInstance<Index<K>>> {
 
-        return sequenceOf(volatileTree) + checkpointableComparableIndexes()
-    }
+        val factory = HashIndexFactory<K>()
 
-    @ExperimentalSerializationApi
-    private fun <K: Comparable<K>> checkpointableComparableIndexes(): Sequence<TestInstance<Index<K>>>
-            = checkpointableIndexes { factory.createTreeIndex(it) }
-
-    @ExperimentalSerializationApi
-    fun <K> checkpointableNonComparableIndexes(): Sequence<TestInstance<Index<K>>>
-            = checkpointableIndexes { factory.createHashIndex(it) }
-
-    @ExperimentalSerializationApi
-    private fun <K> checkpointableIndexes(creator: (Log<IndexEntry<K>>) -> Index<K>): Sequence<TestInstance<Index<K>>> {
-
-        val strIndexes = logs.stringInstances().map{
-            TestInstance(it.name, factory.createStringLogEncoder<K>(it.instance))
-        }.map {
-            TestInstance("Checkpoint ~ ${it.name}", creator(it.instance))
+        val volatileHash = TestInstance("Hash Index") {
+            factory.create("HashIndex${generator.getAndIncrement()}")
         }
 
-        val binaryIndexes = logs.binaryInstances().map {
-            TestInstance(it.name, factory.createBinaryLogEncoder<K>(it.instance))
-        }.map {
-            TestInstance("Checkpoint ~ ${it.name}", creator(it.instance))
+        return sequenceOf(volatileHash) + checkpointableNonComparableIndexes(serializer)
+    }
+
+    @ExperimentalSerializationApi
+    private fun <K : Comparable<K>> comparableInstances(serializer: KSerializer<IndexEntry<K>>):
+            Sequence<TestInstance<Index<K>>> {
+
+        val factory = TreeIndexFactory<K>()
+        val volatileTree = TestInstance("Tree Index") {
+            factory.create("TreeIndex${generator.getAndIncrement()}")
         }
 
-        return strIndexes + binaryIndexes
+        return sequenceOf(volatileTree) + checkpointableComparableIndexes(serializer)
     }
 
-    override fun close() {
-        logs.close()
-    }
+    @ExperimentalSerializationApi
+    private fun <K: Comparable<K>> checkpointableComparableIndexes(serializer: KSerializer<IndexEntry<K>>):
+            Sequence<TestInstance<Index<K>>> = checkpointableIndexes(TreeIndexFactory(), serializer)
+
+    @ExperimentalSerializationApi
+    fun <K> checkpointableNonComparableIndexes(serializer: KSerializer<IndexEntry<K>>): Sequence<TestInstance<Index<K>>>
+            = checkpointableIndexes(HashIndexFactory(), serializer)
+
+    @ExperimentalSerializationApi
+    private fun <K> checkpointableIndexes(innerIndexFactory: IndexFactory<K>, serializer: KSerializer<IndexEntry<K>>):
+            Sequence<TestInstance<Index<K>>> =
+            sequence {
+
+                val indexDir = resources.allocateTempDir("index-")
+
+                for (lineLogInstance in logs.lineLogInstances()) {
+                    val stringFactory = CheckpointableIndexFactory(
+                            innerIndexFactory,
+                            indexDir,
+                            IndexEntryLogFactory(lineLogInstance.instance(), JsonStringEncoder(serializer))
+                    )
+
+                    yield(TestInstance("Checkpointable String Index") {
+                        stringFactory.create("CheckpointableIndex${generator.getAndIncrement()} ~ ${lineLogInstance
+                                .name}")
+                    })
+                }
+
+                for (binaryInstance in logs.binaryInstances()) {
+                    val binaryFactory = CheckpointableIndexFactory(
+                            innerIndexFactory,
+                            indexDir,
+                            IndexEntryLogFactory(binaryInstance.instance(), ProtobufBinaryEncoder(serializer))
+                    )
+
+                    yield(TestInstance("Checkpointable Binary Index") {
+                        binaryFactory.create("CheckpointableIndex${generator.getAndIncrement()} ~ ${binaryInstance
+                                .name}")
+                    })
+                }
+            }
+
 }

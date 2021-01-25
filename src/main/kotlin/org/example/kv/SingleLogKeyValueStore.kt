@@ -1,9 +1,12 @@
 package org.example.kv
 
+import org.example.encoder.Encoder
 import org.example.log.EntryWithOffset
 import org.example.log.Log
+import org.example.log.LogEncoder
+import org.example.possiblyArrayEquals
 
-internal class SingleLogKeyValueStore<K, V>(override val log: Log<Pair<K, V>>,
+private class SingleLogKeyValueStore<K, V>(override val log: Log<Pair<K, V>>,
                                             private val tombstone: V): LogBasedKeyValueStore<K, V> {
 
     override fun put(key: K, value: V) {
@@ -31,27 +34,26 @@ internal class SingleLogKeyValueStore<K, V>(override val log: Log<Pair<K, V>>,
     }
 
     override fun get(key: K, offset: Long) = getWithTombstone(key)
-            ?.takeUnless { it == tombstone }
+            ?.takeUnless { possiblyArrayEquals(it, tombstone) }
 
     override fun getWithOffset(key: K) = log.useEntriesWithOffset { it.findLastKey(key) }
-            ?.takeUnless { it.value == tombstone }
+            ?.takeUnless { possiblyArrayEquals(it.value, tombstone) }
 
     override fun getWithTombstone(key: K): V? = log.useEntries(0) { it.findLastKey(key) }
 
     private fun Sequence<Pair<K, V>>.findLastKey(key: K): V? = this
-            .findLast { keyEquals(key, it.first) }?.second
+            .findLast { possiblyArrayEquals(key, it.first) }?.second
 
     private fun Sequence<EntryWithOffset<Pair<K, V>>>.findLastKey(key: K): ValueWithOffset<V>? = this
             .map { Pair(it.offset, it.entry) }
-            .findLast { keyEquals(key, it.second.first) }?.let { ValueWithOffset(it.first, it.second.second) }
+            .findLast { possiblyArrayEquals(key, it.second.first) }?.let { ValueWithOffset(it.first, it.second.second) }
 
 }
 
-private fun keyEquals(val1: Any?, val2: Any?): Boolean {
+class SingleLogKeyValueStoreFactory<E, K, V>(private val tombstone: V,
+                                             private val encoder: Encoder<Pair<K, V>, E>
+): LogBasedKeyValueStoreFactory<E, K, V> {
 
-    if (val1 is ByteArray && val2 is ByteArray) {
-        return val1.contentEquals(val2)
-    }
-
-    return val1 == val2
+    override fun create(log: Log<E>): LogBasedKeyValueStore<K, V>
+            = SingleLogKeyValueStore(LogEncoder(log, encoder), tombstone)
 }

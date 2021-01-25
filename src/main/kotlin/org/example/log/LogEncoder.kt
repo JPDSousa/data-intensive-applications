@@ -1,5 +1,8 @@
 package org.example.log
 
+import org.example.encoder.Encoder
+import java.nio.file.Path
+
 class LogEncoder<S, T>(private val log: Log<T>,
                        private val encoder: Encoder<S, T>): Log<S> {
 
@@ -21,4 +24,8 @@ class LogEncoder<S, T>(private val log: Log<T>,
     override fun clear() = log.clear()
 }
 
+class LogEncoderFactory<S, T>(private val innerFactory: LogFactory<T>,
+                              private val encoder: Encoder<S, T>): LogFactory<S> {
 
+    override fun create(logPath: Path): Log<S> = LogEncoder(innerFactory.create(logPath), encoder)
+}

@@ -1,6 +1,6 @@
 package org.example.index
 
-class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): Index<K> {
+private class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): Index<K> {
 
     override fun putOffset(key: K, offset: Long) {
         index[key] = offset
@@ -14,4 +14,9 @@ class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): Index<K>
 
     override fun entries() = index.map { IndexEntry(it.key, it.value) }
 
+}
+
+class HashIndexFactory<K>: IndexFactory<K> {
+
+    override fun create(indexName: String): Index<K> = HashIndex()
 }

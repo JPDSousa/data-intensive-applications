@@ -1,7 +1,6 @@
 package org.example.index
 
 import org.example.TestInstance
-import org.example.log.Index
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.DynamicTest.dynamicTest
@@ -17,7 +16,7 @@ interface IndexTest<K> {
 
     @TestFactory fun `offsets are persisted`() = instances().map {
         dynamicTest(it.name) {
-            val index = it.instance
+            val index = it.instance()
 
             val key = nextKey()
             val expected = 1234L
@@ -29,7 +28,7 @@ interface IndexTest<K> {
 
     @TestFactory fun `absent entry has no offset`() = instances().map {
         dynamicTest(it.name) {
-            val index = it.instance
+            val index = it.instance()
 
             assertNull(index.getOffset(nextKey()))
         }
@@ -37,7 +36,7 @@ interface IndexTest<K> {
 
     @TestFactory fun `reads do not delete entries`() = instances().map {
         dynamicTest(it.name) {
-            val index = it.instance
+            val index = it.instance()
 
             val key = nextKey()
             val expected = 1234L
@@ -51,7 +50,7 @@ interface IndexTest<K> {
 
     @TestFactory fun `sequential writes act as updates`() = instances().map {
         dynamicTest(it.name) {
-            val index = it.instance
+            val index = it.instance()
 
             val key = nextKey()
             val expected = 4321L
@@ -64,7 +63,7 @@ interface IndexTest<K> {
 
     @TestFactory fun `keys are isolated`() = instances().map {
         dynamicTest(it.name) {
-            val index = it.instance
+            val index = it.instance()
 
             val key1 = nextKey()
             val value1 = 1234L

@@ -7,7 +7,12 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import org.example.kv.KeyValueStore
 import org.example.kv.LogBasedKeyValueStore
+import org.example.kv.LogBasedKeyValueStoreFactory
+import org.example.kv.Tombstone
+import org.example.log.LogFactory
 import org.example.lsm.LSMStructure
+import org.example.possiblyArrayEquals
+import java.nio.file.Path
 import java.util.concurrent.Executors
 
 internal class LSMKeyValueStore<K, V>(private val segments: LSMStructure<LogBasedKeyValueStore<K, V>>,
@@ -51,7 +56,7 @@ internal class LSMKeyValueStore<K, V>(private val segments: LSMStructure<LogBase
             val kvs = segment.structure
             val value = kvs.getWithTombstone(key)
 
-            if (value == tombstone) {
+            if (possiblyArrayEquals(value, tombstone)) {
                 logger.trace { "Found tombstone. Returning null" }
                 return null
             }
@@ -68,6 +73,30 @@ internal class LSMKeyValueStore<K, V>(private val segments: LSMStructure<LogBase
     }
 
     override fun clear() = segments.clear()
+}
+
+class LSMKeyValueStoreFactory<E, K, V>(private val logFactory: LogFactory<E>,
+                                       private val logKVSFactory: LogBasedKeyValueStoreFactory<E, K, V>,
+                                       private val tombstone: V) {
+
+
+    fun createLSMKeyValueStore(kvDir: Path): KeyValueStore<K, V> = LSMSegmentFactory(
+            kvDir,
+            logFactory,
+            logKVSFactory,
+            segmentSize
+    ).let {
+        LSMKeyValueStore(
+                LSMStructure(it, segmentSize, KeyValueLogMergeStrategy(it)),
+                tombstone
+        )
+    }
+
+    companion object {
+
+        private const val segmentSize: Long = 1024 * 1024
+
+    }
 }
 
 

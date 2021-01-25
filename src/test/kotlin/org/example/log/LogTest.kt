@@ -16,13 +16,13 @@ interface LogTest<T> {
 
     @TestFactory fun `append on empty file should return 0`() = instances().map {
         dynamicTest(it.name) {
-            assertEquals(0, it.instance.append(nextValue()))
+            assertEquals(0, it.instance().append(nextValue()))
         }
     }.asStream()
 
     @TestFactory fun `append should sum offset`() = instances().map {
         dynamicTest(it.name) {
-            val log = it.instance
+            val log = it.instance()
             val firstOffset = log.append(nextValue())
             val secondOffset = log.append(nextValue())
 
@@ -32,7 +32,7 @@ interface LogTest<T> {
 
     @TestFactory fun `single append should be readable`() = instances().map { case ->
         dynamicTest(case.name) {
-            val log = case.instance
+            val log = case.instance()
             val expected = nextValue()
             log.append(expected)
 
@@ -48,14 +48,14 @@ interface LogTest<T> {
     @TestFactory fun `multiple appends should be readable`() = instances().map { case ->
         dynamicTest(case.name) {
 
-            multipleReadWriteCycle(case.instance) { log, values -> values.forEach { log.append(it) }}
+            multipleReadWriteCycle(case.instance()) { log, values -> values.forEach { log.append(it) }}
 
         }
     }.asStream()
 
     @TestFactory fun `atomic multiple appends (appendAll) should be readable`() = instances().map { case ->
         dynamicTest(case.name) {
-            multipleReadWriteCycle(case.instance) { log, values -> log.appendAll(values) }
+            multipleReadWriteCycle(case.instance()) { log, values -> log.appendAll(values) }
         }
     }.asStream()
 
