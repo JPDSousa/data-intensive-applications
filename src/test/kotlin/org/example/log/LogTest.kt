@@ -59,13 +59,13 @@ interface LogTest<T> {
         }
     }.asStream()
 
-    fun multipleReadWriteCycle(log: Log<T>, append: (Log<T>, List<T>) -> Unit) {
+    fun multipleReadWriteCycle(log: Log<T>, append: (Log<T>, Sequence<T>) -> Unit) {
 
         val expectedList = sequence<T> { nextValue() }
                 .take(50)
                 .toList()
 
-        append(log, expectedList)
+        append(log, expectedList.asSequence())
 
         val actualList = log.useEntries { it.toList() }
 

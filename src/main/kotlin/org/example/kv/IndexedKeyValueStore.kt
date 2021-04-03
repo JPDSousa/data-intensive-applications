@@ -54,7 +54,7 @@ private class IndexedKeyValueStore<K, V>(
 
     override fun clear() = logKV.clear()
 
-    private fun Set<K>.zipIndex(other: Collection<Long>): Iterable<IndexEntry<K>> {
+    private fun Set<K>.zipIndex(other: Sequence<Long>): Iterable<IndexEntry<K>> {
 
         val indexes = ArrayList<IndexEntry<K>>(size)
         val thisIterator = iterator()
@@ -72,15 +72,15 @@ private class IndexedKeyValueStore<K, V>(
     }
 }
 
-class IndexedKeyValueStoreFactory<E, K, V>(private val indexFactory: IndexFactory<K>,
-                                           private val tombstone: V,
-                                           private val innerKVSFactory: LogBasedKeyValueStoreFactory<E, K, V>,
-                                           private val nameGenerator: AtomicLong = AtomicLong(0))
-    : LogBasedKeyValueStoreFactory<E, K, V> {
+class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: IndexFactory<K>,
+                                        private val tombstone: V,
+                                        private val innerKVSFactory: LogBasedKeyValueStoreFactory<K, V>,
+                                        private val nameGenerator: AtomicLong = AtomicLong(0))
+    : LogBasedKeyValueStoreFactory<K, V> {
 
-    override fun create(log: Log<E>): LogBasedKeyValueStore<K, V> = IndexedKeyValueStore(
-            indexFactory.create("Index${nameGenerator.getAndIncrement()}"),
-            tombstone,
-            innerKVSFactory.create(log)
+    override fun createFromPair(log: Log<Map.Entry<K, V>>): LogBasedKeyValueStore<K, V> = IndexedKeyValueStore(
+        indexFactory.create("Index${nameGenerator.getAndIncrement()}"),
+        tombstone,
+        innerKVSFactory.createFromPair(log)
     )
 }

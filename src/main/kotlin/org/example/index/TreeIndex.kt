@@ -14,7 +14,7 @@ internal class TreeIndex<K: Comparable<K>>(private val index: MutableMap<K, Long
 
     override fun getOffset(key: K) = index[key]
 
-    override fun entries() = index.map { IndexEntry(it.key, it.value) }
+    override fun entries() = index.map { IndexEntry(it.key, it.value) }.asSequence()
 }
 
 class TreeIndexFactory<K: Comparable<K>>: IndexFactory<K> {

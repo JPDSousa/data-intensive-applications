@@ -1,6 +1,6 @@
 package org.example.lsm
 
-interface SegmentMergeStrategy<S> {
+interface SegmentMergeStrategy<K, V> {
 
-    fun merge(segmentsToCompact: List<Segment<S>>): List<Segment<S>>
+    fun merge(segmentsToCompact: List<Segment<K, V>>): List<Segment<K, V>>
 }

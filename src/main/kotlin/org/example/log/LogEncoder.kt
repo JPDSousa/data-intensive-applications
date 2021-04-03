@@ -8,7 +8,7 @@ class LogEncoder<S, T>(private val log: Log<T>,
 
     override fun append(entry: S) = log.append(encoder.encode(entry))
 
-    override fun appendAll(entries: Collection<S>) = log.appendAll(entries.map { encoder.encode(it) })
+    override fun appendAll(entries: Sequence<S>) = log.appendAll(entries.map { encoder.encode(it) })
 
     override fun <R> useEntries(offset: Long, block: (Sequence<S>) -> R) = log.useEntries(offset) { sequence ->
         block(sequence.map { encoder.decode(it) })

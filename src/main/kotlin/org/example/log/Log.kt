@@ -6,7 +6,7 @@ interface Log<T> {
 
     fun append(entry: T): Long
 
-    fun appendAll(entries: Collection<T>): Collection<Long>
+    fun appendAll(entries: Sequence<T>): Sequence<Long>
 
     fun <R> useEntries(offset: Long = 0, block: (Sequence<T>) -> R): R
 

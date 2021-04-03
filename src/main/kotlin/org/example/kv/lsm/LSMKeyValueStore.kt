@@ -6,17 +6,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import org.example.kv.KeyValueStore
-import org.example.kv.LogBasedKeyValueStore
 import org.example.kv.LogBasedKeyValueStoreFactory
-import org.example.kv.Tombstone
-import org.example.log.LogFactory
-import org.example.lsm.LSMStructure
+import org.example.lsm.*
 import org.example.possiblyArrayEquals
-import java.nio.file.Path
 import java.util.concurrent.Executors
 
-internal class LSMKeyValueStore<K, V>(private val segments: LSMStructure<LogBasedKeyValueStore<K, V>>,
+internal class LSMKeyValueStore<K, V>(private val closedSegments: ClosedSegments<K, V>,
+                                      private val segmentFactory: SegmentFactory<K, V>,
                                       private val tombstone: V,
+                                      private val kvFactory: LogBasedKeyValueStoreFactory<K, V>,
                                       private val compactCycle: Long = 1000,
                                       private val compactPooling: Long = 1000 * 60): KeyValueStore<K, V> {
 
@@ -24,6 +22,8 @@ internal class LSMKeyValueStore<K, V>(private val segments: LSMStructure<LogBase
 
     @Volatile
     private var opsWithoutCompact: Long = 0
+
+    private var openSegment = segmentFactory.createOpenSegment()
 
     init {
         val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -34,7 +34,7 @@ internal class LSMKeyValueStore<K, V>(private val segments: LSMStructure<LogBase
                 val opsWithoutCompact = this@LSMKeyValueStore.opsWithoutCompact
                 if (opsWithoutCompact >= compactCycle) {
                     logger.info { "Reached $opsWithoutCompact since last compact. Triggering compact operation" }
-                    segments.compact()
+                    closedSegments.compact()
                     // this is possibly not thread safe
                     this@LSMKeyValueStore.opsWithoutCompact -= opsWithoutCompact
                 } else {
@@ -46,57 +46,64 @@ internal class LSMKeyValueStore<K, V>(private val segments: LSMStructure<LogBase
     }
 
     override fun put(key: K, value: V) {
-        segments.openSegment().structure.put(key, value)
+        openSegment.put(key, value)
+        if (openSegment.isFull()) {
+            closedSegments.accept(openSegment)
+            openSegment = segmentFactory.createOpenSegment()
+        }
     }
 
-    override fun get(key: K): V? {
-        var segCounter = 0
-        for (segment in segments) {
-            logger.trace { "Searching segment ${segCounter++} for key $key" }
-            val kvs = segment.structure
-            val value = kvs.getWithTombstone(key)
+    override fun get(key: K): V? = getWithTombstone(key)
+        .takeUnless { possiblyArrayEquals(it, tombstone) }
 
-            if (possiblyArrayEquals(value, tombstone)) {
-                logger.trace { "Found tombstone. Returning null" }
-                return null
-            }
+    override fun delete(key: K) {
+        openSegment.delete(key)
+    }
+
+    override fun clear() {
+        openSegment.clear()
+        closedSegments.clear()
+    }
+
+    override fun getWithTombstone(key: K): V? {
+        val openValue = openSegment.getWithTombstone(key)
+
+        if (openValue != null) {
+            logger.debug { "Found key $key in open segment" }
+            return openValue
+        }
+
+        var segCounter = 0
+        for (segment in closedSegments) {
+            logger.trace { "Searching segment ${segCounter++} for key $key" }
+            val kvSegment = kvFactory.createFromPair(segment.log)
+            val value = kvSegment.getWithTombstone(key)
 
             if (value != null) {
+                logger.debug { "Found key $key in segment $segCounter" }
                 return value
             }
         }
         return null
     }
-
-    override fun delete(key: K) {
-        this.segments.openSegment().structure.delete(key)
-    }
-
-    override fun clear() = segments.clear()
 }
 
-class LSMKeyValueStoreFactory<E, K, V>(private val logFactory: LogFactory<E>,
-                                       private val logKVSFactory: LogBasedKeyValueStoreFactory<E, K, V>,
-                                       private val tombstone: V) {
+class LSMKeyValueStoreFactory<K, V>(
+    private val logKVSFactory: LogBasedKeyValueStoreFactory<K, V>,
+    private val tombstone: V
+) {
 
+    fun createLSMKeyValueStore(segmentFactory: SegmentFactory<K, V>,
+                               mergeStrategy: SegmentMergeStrategy<K, V>): KeyValueStore<K, V> {
 
-    fun createLSMKeyValueStore(kvDir: Path): KeyValueStore<K, V> = LSMSegmentFactory(
-            kvDir,
-            logFactory,
+        return LSMKeyValueStore(
+            ClosedSegments(mergeStrategy),
+            segmentFactory,
+            tombstone,
             logKVSFactory,
-            segmentSize
-    ).let {
-        LSMKeyValueStore(
-                LSMStructure(it, segmentSize, KeyValueLogMergeStrategy(it)),
-                tombstone
         )
     }
 
-    companion object {
-
-        private const val segmentSize: Long = 1024 * 1024
-
-    }
 }
 
 

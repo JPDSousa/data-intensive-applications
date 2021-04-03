@@ -5,7 +5,10 @@ import org.example.TestResources
 import org.example.encoder.Encoders
 import org.example.index.IndexFactories
 import org.example.log.LogFactories
+import org.example.size.ByteArraySizeCalculator
+import org.example.size.StringSizeCalculator
 import org.junit.jupiter.api.AfterAll
+import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicLong
 
 
@@ -23,9 +26,12 @@ abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
 
         @JvmStatic
         internal val kvs = KeyValueStores(
-                LogKeyValueStores(encoders, IndexFactories(resources)),
-                LogFactories(encoders),
-                resources
+            LogKeyValueStores(IndexFactories(resources)),
+            LogFactories(encoders),
+            encoders,
+            ByteArraySizeCalculator,
+            StringSizeCalculator(Charset.defaultCharset(), ByteArraySizeCalculator),
+            resources
         )
 
         @JvmStatic

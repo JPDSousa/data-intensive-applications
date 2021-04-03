@@ -8,6 +8,7 @@ import java.nio.file.Files.*
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
+import java.util.*
 import java.util.zip.CRC32
 
 private class BinaryLog(private val path: Path): Log<ByteArray> {
@@ -25,23 +26,26 @@ private class BinaryLog(private val path: Path): Log<ByteArray> {
         return offset
     }
 
-    override fun appendAll(entries: Collection<ByteArray>): Collection<Long> {
+    override fun appendAll(entries: Sequence<ByteArray>): Sequence<Long> {
 
-        if (entries.isEmpty()) {
-            return emptyList()
+        if (entries.none()) {
+            return emptySequence()
         }
 
-        val offsets = entries.runningFold(size, { acc, entry -> acc + headerSize + entry.size })
+        val offsets: MutableList<Long> = LinkedList()
+        offsets.add(size)
 
         path.writeOnly { stream ->
             entries.forEach {
                 stream.writeEntry(it)
+                val last = offsets.last()
+                offsets.add(last + headerSize + it.size)
             }
         }
 
         size = offsets.last()
 
-        return listOf(0L) + offsets.subList(0, offsets.size - 1)
+        return sequenceOf(0L) + offsets.subList(0, offsets.size - 1)
     }
 
     override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R = when {
@@ -71,7 +75,7 @@ private class BinaryLog(private val path: Path): Log<ByteArray> {
     companion object {
 
         // entrySize + checksum
-        val headerSize = Int.SIZE_BYTES + Long.SIZE_BYTES
+        const val headerSize = Int.SIZE_BYTES + Long.SIZE_BYTES
     }
 
 }

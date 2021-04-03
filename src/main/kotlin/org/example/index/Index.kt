@@ -14,7 +14,7 @@ interface Index<K> {
 
     fun getOffset(key: K): Long?
 
-    fun entries(): Collection<IndexEntry<K>>
+    fun entries(): Sequence<IndexEntry<K>>
 
 }
 

@@ -8,6 +8,7 @@ import java.nio.file.Files.*
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
+import java.util.*
 import java.util.zip.CRC32
 import kotlin.streams.asSequence
 import kotlin.streams.asStream
@@ -28,21 +29,27 @@ private class LineLog(private val path: Path, private val charset: Charset = UTF
         return offset
     }
 
-    override fun appendAll(entries: Collection<String>): Collection<Long> {
+    override fun appendAll(entries: Sequence<String>): Sequence<Long> {
 
-        if (entries.isEmpty()) {
-            return listOf()
+        if (entries.none()) {
+            return emptySequence()
         }
 
-        val lines = entries.map { it.prependHeader() }
-        val offsets = lines.runningFold(size, { acc, entry ->
-            acc + entry.entrySize()
-        })
+        val offsets: MutableList<Long> = LinkedList()
+        offsets.add(size)
+
+        val lines = entries.asStream()
+            .map { it.prependHeader() }
+            .peek {
+                val last = offsets.last()
+                offsets.add(last + it.entrySize())
+            }.asSequence()
+            .asIterable()
         write(path, lines, charset, CREATE, APPEND)
 
         size = offsets.last()
 
-        return listOf(0L) + offsets.subList(0, offsets.size - 1)
+        return sequenceOf(0L) + offsets.subList(0, offsets.size - 1)
     }
 
     override fun <T> useEntries(offset: Long, block: (Sequence<String>) -> T): T {

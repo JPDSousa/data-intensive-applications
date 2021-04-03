@@ -1,31 +1,32 @@
 package org.example.kv.lsm
 
 import mu.KotlinLogging
-import org.example.kv.LogBasedKeyValueStore
 import org.example.lsm.Segment
 import org.example.lsm.SegmentFactory
 import org.example.lsm.SegmentMergeStrategy
+import org.example.size.SizeCalculator
 import java.util.*
 
 internal class KeyValueLogMergeStrategy<K, V>(
-        private val segmentFactory: SegmentFactory<LogBasedKeyValueStore<K, V>>):
-        SegmentMergeStrategy<LogBasedKeyValueStore<K, V>> {
+    private val segmentFactory: SegmentFactory<K, V>,
+    private val keySize: SizeCalculator<K>,
+    private val valueSize: SizeCalculator<V>): SegmentMergeStrategy<K, V> {
 
     private val logger = KotlinLogging.logger {}
 
-    override fun merge(segmentsToCompact: List<Segment<LogBasedKeyValueStore<K, V>>>):
-            List<Segment<LogBasedKeyValueStore<K, V>>> {
+    override fun merge(segmentsToCompact: List<Segment<K, V>>):
+            List<Segment<K, V>> {
 
         logger.debug { "Triggering a compact operation" }
-        val compactedSegments = LinkedList<Segment<LogBasedKeyValueStore<K, V>>>()
+        val compactedSegments = LinkedList<Segment<K, V>>()
 
         var segCounter = 1
         // TODO compact according to segment size instead.
-        val memorySegment = CompactedLSMSegment(segmentFactory, 1000)
+        val memorySegment = CompactedLSMSegment(segmentFactory, keySize, valueSize)
         for (segment in segmentsToCompact) {
 
             logger.trace { "Compacting segment ${segCounter++}/${compactedSegments.size}" }
-            segment.structure.log.useEntries { entries ->
+            segment.log.useEntries { entries ->
                 entries.forEach { entry ->
                     memorySegment.upsert(entry)
                     if (memorySegment.isFull()) {
@@ -41,24 +42,31 @@ internal class KeyValueLogMergeStrategy<K, V>(
 
 }
 
-private class CompactedLSMSegment<K, V>(private val factory: SegmentFactory<LogBasedKeyValueStore<K, V>>,
-                                        private val limit: Int) {
+private class CompactedLSMSegment<K, V>(private val factory: SegmentFactory<K, V>,
+                                        private val keySize: SizeCalculator<K>,
+                                        private val valueSize: SizeCalculator<V>) {
 
     private val compactedContent = mutableMapOf<K, V>()
+    private var size: Long = 0L
 
-    fun upsert(entry: Pair<K, V>) = compactedContent.put(entry.first, entry.second)
+    fun upsert(entry: Map.Entry<K, V>) {
+        val valueSize: Int = compactedContent[entry.key]
+            ?.let { valueSize.sizeOf(it) }
+            ?: 0
+        compactedContent[entry.key] = entry.value
+        size += keySize.sizeOf(entry.key)
+        size += this.valueSize.sizeOf(entry.value) - valueSize
+    }
 
-    fun flush(): Segment<LogBasedKeyValueStore<K, V>> {
+    fun flush(): Segment<K, V> {
         val compacted = factory.createSegment()
 
-        compacted.structure.putAll(compactedContent)
+        compacted.log.appendAll(compactedContent.asSequence())
         compactedContent.clear()
 
         return compacted
     }
 
-    fun isFull() = compactedContent.size >= limit
-
-    fun isNotEmpty() = compactedContent.isNotEmpty()
+    fun isFull() = compactedContent.size >= factory.segmentThreshold
 
 }

@@ -12,7 +12,7 @@ private class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): 
         pairs.forEach { index[it.key] = it.offset }
     }
 
-    override fun entries() = index.map { IndexEntry(it.key, it.value) }
+    override fun entries() = index.map { IndexEntry(it.key, it.value) }.asSequence()
 
 }
 
