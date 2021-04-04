@@ -1,68 +1,40 @@
 package org.example.kv.lsm
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineDispatcher
 import mu.KotlinLogging
 import org.example.kv.KeyValueStore
 import org.example.possiblyArrayEquals
-import java.util.concurrent.Executors
+import org.example.recurrent.OpsBasedRecurrentJob
+import org.example.recurrent.RecurrentJob
 
 interface LSMKeyValueStore<K, V>: KeyValueStore<K, V> {
 
     fun compact()
 }
 
-private class OpsCycleDecorator<K, V>(private val decorated: LSMKeyValueStore<K, V>,
-                                      private val compactCycle: Long = 1000,
-                                      private val compactPooling: Long = 1000 * 60): LSMKeyValueStore<K, V> {
-
-    private val logger = KotlinLogging.logger {}
-
-    @Volatile
-    private var opsWithoutCompact: Long = 0
-
-    init {
-        val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-        GlobalScope.launch(dispatcher) {
-            while (true) {
-                logger.trace { "Waiting $compactPooling to check again for the need of compacting" }
-                delay(compactPooling)
-                val opsWithoutCompact = this@OpsCycleDecorator.opsWithoutCompact
-                if (opsWithoutCompact >= compactCycle) {
-                    logger.info { "Reached $opsWithoutCompact since last compact. Triggering compact operation" }
-                    compact()
-                } else {
-                    logger.debug { "$opsWithoutCompact ops since last compact. ${compactCycle - opsWithoutCompact} " +
-                            "missing to trigger new compact operation"}
-                }
-            }
-        }
-    }
+private class RecurrentMergeDecorator<K, V>(private val decorated: LSMKeyValueStore<K, V>,
+                                            private val recurrentJob: RecurrentJob): LSMKeyValueStore<K, V> {
 
     override fun put(key: K, value: V) {
         decorated.put(key, value)
-        opsWithoutCompact++
+        recurrentJob.registerOperation()
     }
 
     override fun get(key: K): V? = decorated.get(key)
-        .also { opsWithoutCompact++ }
+        .also { recurrentJob.registerOperation() }
 
     override fun delete(key: K) {
         decorated.delete(key)
-        opsWithoutCompact++
+        recurrentJob.registerOperation()
     }
 
     override fun clear() {
         decorated.clear()
-        opsWithoutCompact = 0
+        recurrentJob.reset()
     }
 
     override fun compact() {
-        val opsWithoutCompact = this.opsWithoutCompact
         decorated.compact()
-        this.opsWithoutCompact -= opsWithoutCompact
     }
 
 }
@@ -122,15 +94,21 @@ private class SegmentedLSM<K, V>(private val segmentManager: SegmentManager<K, V
 
 }
 
-class LSMKeyValueStoreFactory<K, V>(private val tombstone: V) {
+class LSMKeyValueStoreFactory<K, V>(private val tombstone: V, private val dispatcher: CoroutineDispatcher) {
 
     fun createLSMKeyValueStore(segmentManager: SegmentManager<K, V>): LSMKeyValueStore<K, V> {
 
         return SegmentedLSM(
             segmentManager,
             tombstone,
-        ).let { OpsCycleDecorator(it) }
+        ).let { RecurrentMergeDecorator(it, createRecurrentMerge(it)) }
     }
+
+    private fun createRecurrentMerge(lsm: LSMKeyValueStore<K, V>) = OpsBasedRecurrentJob(
+        lsm::compact,
+        10_000,
+        dispatcher
+    )
 
 }
 

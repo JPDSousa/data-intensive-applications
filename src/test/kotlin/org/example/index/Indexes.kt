@@ -1,5 +1,6 @@
 package org.example.index
 
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import org.example.TestInstance
@@ -9,7 +10,9 @@ import org.example.encoder.ProtobufBinaryEncoder
 import org.example.log.LogFactories
 import java.util.concurrent.atomic.AtomicLong
 
-class Indexes(private val logs: LogFactories, private val resources: TestResources) {
+class Indexes(private val logs: LogFactories,
+              private val resources: TestResources,
+              private val dispatcher: CoroutineDispatcher) {
 
     private val generator = AtomicLong()
 
@@ -52,35 +55,39 @@ class Indexes(private val logs: LogFactories, private val resources: TestResourc
     @ExperimentalSerializationApi
     private fun <K> checkpointableIndexes(innerIndexFactory: IndexFactory<K>, serializer: KSerializer<IndexEntry<K>>):
             Sequence<TestInstance<Index<K>>> =
-            sequence {
+        sequence {
 
-                val indexDir = resources.allocateTempDir("index-")
+            val indexDir = resources.allocateTempDir("index-")
 
-                for (lineLogInstance in logs.lineLogInstances()) {
-                    val stringFactory = CheckpointableIndexFactory(
-                            innerIndexFactory,
-                            indexDir,
-                            IndexEntryLogFactory(lineLogInstance.instance(), JsonStringEncoder(serializer))
-                    )
+            for (lineLogInstance in logs.lineLogInstances()) {
+                val stringFactory = CheckpointableIndexFactory(
+                    innerIndexFactory,
+                    indexDir,
+                    IndexEntryLogFactory(lineLogInstance.instance(), JsonStringEncoder(serializer)),
+                    10_000,
+                    dispatcher
+                )
 
-                    yield(TestInstance("Checkpointable String Index") {
-                        stringFactory.create("CheckpointableIndex${generator.getAndIncrement()} ~ ${lineLogInstance
-                                .name}")
-                    })
-                }
-
-                for (binaryInstance in logs.binaryInstances()) {
-                    val binaryFactory = CheckpointableIndexFactory(
-                            innerIndexFactory,
-                            indexDir,
-                            IndexEntryLogFactory(binaryInstance.instance(), ProtobufBinaryEncoder(serializer))
-                    )
-
-                    yield(TestInstance("Checkpointable Binary Index") {
-                        binaryFactory.create("CheckpointableIndex${generator.getAndIncrement()} ~ ${binaryInstance
-                                .name}")
-                    })
-                }
+                yield(TestInstance("Checkpointable String Index") {
+                    stringFactory.create("CheckpointableIndex${generator.getAndIncrement()} ~ ${lineLogInstance
+                        .name}")
+                })
             }
+
+            for (binaryInstance in logs.binaryInstances()) {
+                val binaryFactory = CheckpointableIndexFactory(
+                    innerIndexFactory,
+                    indexDir,
+                    IndexEntryLogFactory(binaryInstance.instance(), ProtobufBinaryEncoder(serializer)),
+                    10_000,
+                    dispatcher
+                )
+
+                yield(TestInstance("Checkpointable Binary Index") {
+                    binaryFactory.create("CheckpointableIndex${generator.getAndIncrement()} ~ ${binaryInstance
+                        .name}")
+                })
+            }
+        }
 
 }

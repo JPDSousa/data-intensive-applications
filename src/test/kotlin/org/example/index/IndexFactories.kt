@@ -1,5 +1,6 @@
 package org.example.index
 
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import org.example.TestInstance
@@ -11,7 +12,8 @@ import org.example.log.BinaryLogFactory
 import org.example.log.LineLogFactory
 import org.example.log.LogFactory
 
-class IndexFactories(private val resources: TestResources) {
+class IndexFactories(private val resources: TestResources,
+                     private val dispatcher: CoroutineDispatcher) {
 
     @ExperimentalSerializationApi
     fun <K> instances(serializer: KSerializer<IndexEntry<K>>): Sequence<TestInstance<IndexFactory<K>>> = sequence {
@@ -25,7 +27,8 @@ class IndexFactories(private val resources: TestResources) {
             checkpointableIndexFactory(
                     HashIndexFactory(),
                     BinaryLogFactory(),
-                    ProtobufBinaryEncoder(serializer))
+                    ProtobufBinaryEncoder(serializer)
+            )
         })
 
         yield(TestInstance("Checkpointable index with string log") {
@@ -50,11 +53,14 @@ class IndexFactories(private val resources: TestResources) {
     private fun <K, E> checkpointableIndexFactory(indexFactory: IndexFactory<K>,
                                                   logFactory: LogFactory<E>,
                                                   encoder: Encoder<IndexEntry<K>, E>) = CheckpointableIndexFactory(
-            indexFactory,
-            resources.allocateTempDir("index-"),
-            IndexEntryLogFactory(
-                    logFactory,
-                    encoder
-            ))
+        indexFactory,
+        resources.allocateTempDir("index-"),
+        IndexEntryLogFactory(
+            logFactory,
+            encoder
+        ),
+        10_000,
+        dispatcher
+    )
 
 }

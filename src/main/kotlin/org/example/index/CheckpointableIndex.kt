@@ -1,38 +1,43 @@
 package org.example.index
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineDispatcher
 import org.example.encoder.Encoder
 import org.example.log.Log
 import org.example.log.LogEncoderFactory
 import org.example.log.LogFactory
+import org.example.recurrent.OpsBasedRecurrentJob
+import org.example.recurrent.RecurrentJob
 import java.nio.file.Files.createFile
 import java.nio.file.Path
-import java.util.concurrent.Executors.newSingleThreadExecutor
 
-private class CheckpointableIndex<K>(private val index: Index<K>,
-                                     private val checkpoint: Log<IndexEntry<K>>,
-                                     private var checkpointCycle: Long = 1000L,
-                                     dispatcher: CoroutineDispatcher = newSingleThreadExecutor()
-                                             .asCoroutineDispatcher()): Index<K> by index {
+interface CheckpointableIndex<K>: Index<K> {
 
-    @Volatile
-    private var volatileOps = 0L
+    fun checkpoint()
+}
 
-    init {
-        GlobalScope.launch(dispatcher) {
-            while (true) {
-                delay(1000 * 60)
-                val volatileOps = this@CheckpointableIndex.volatileOps
-                if (volatileOps >= checkpointCycle) {
-                    checkpoint()
-                    // this is possibly not thread safe
-                    this@CheckpointableIndex.volatileOps -= volatileOps
-                }
-            }
-        }
+private class RecurrentCheckpointableIndex<K>(private val index: CheckpointableIndex<K>,
+                                              private val checkpointJob: RecurrentJob): CheckpointableIndex<K> {
+
+    override fun putOffset(key: K, offset: Long) {
+        index.putOffset(key, offset)
+        checkpointJob.registerOperation()
     }
 
-    private fun checkpoint() {
+    override fun getOffset(key: K): Long? = index.getOffset(key)
+        .also { checkpointJob.registerOperation() }
+
+    override fun entries(): Sequence<IndexEntry<K>> = index.entries()
+
+    override fun checkpoint() {
+        index.checkpoint()
+    }
+}
+
+private class LogCheckpointableIndex<K>(private val index: Index<K>,
+                                        private val checkpoint: Log<IndexEntry<K>>)
+    : CheckpointableIndex<K>, Index<K> by index {
+
+    override fun checkpoint() {
         checkpoint.clear()
         checkpoint.appendAll(index.entries())
     }
@@ -40,13 +45,21 @@ private class CheckpointableIndex<K>(private val index: Index<K>,
 
 class CheckpointableIndexFactory<K>(private val innerFactory: IndexFactory<K>,
                                     private val indexDir: Path,
-                                    private val entryLogFactory: LogFactory<IndexEntry<K>>): IndexFactory<K> {
+                                    private val entryLogFactory: LogFactory<IndexEntry<K>>,
+                                    private val checkpointCycle: Long,
+                                    private val coroutineDispatcher: CoroutineDispatcher): IndexFactory<K> {
 
     override fun create(indexName: String): Index<K> = "index-$indexName.log"
-            .let { indexDir.resolve(it) }
-            .let { createFile(it) }
-            .let { entryLogFactory.create(it) }
-            .let { CheckpointableIndex(innerFactory.create(indexName), it) }
+        .let { indexDir.resolve(it) }
+        .let { createFile(it) }
+        .let { entryLogFactory.create(it) }
+        .let { LogCheckpointableIndex(innerFactory.create(indexName), it) }
+        .let { RecurrentCheckpointableIndex(it, createRecurringCheckpoint(it)) }
+
+    private fun createRecurringCheckpoint(index: CheckpointableIndex<K>): RecurrentJob {
+
+        return OpsBasedRecurrentJob(index::checkpoint, checkpointCycle, coroutineDispatcher)
+    }
 
 }
 

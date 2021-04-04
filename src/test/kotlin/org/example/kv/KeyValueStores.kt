@@ -1,5 +1,6 @@
 package org.example.kv
 
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
@@ -19,7 +20,8 @@ class KeyValueStores(private val iKVs: LogKeyValueStores,
                      private val encoders: Encoders,
                      private val byteArrayCalculator: SizeCalculator<ByteArray>,
                      private val stringSizeCalculator: SizeCalculator<String>,
-                     private val resources: TestResources) {
+                     private val resources: TestResources,
+                     private val dispatcher: CoroutineDispatcher) {
 
     @ExperimentalSerializationApi
     fun binaryKeyValueStores(): Sequence<TestInstance<KeyValueStore<ByteArray, ByteArray>>> = sequence {
@@ -31,7 +33,7 @@ class KeyValueStores(private val iKVs: LogKeyValueStores,
                 for (encoder in encoders.binaries(serializer)) {
 
                     val logKVSFactory = binaryKeyValueStore.instance()
-                    val lsmKvsFactory = LSMKeyValueStoreFactory<ByteArray, ByteArray>(Tombstone.byte)
+                    val lsmKvsFactory = LSMKeyValueStoreFactory<ByteArray, ByteArray>(Tombstone.byte, dispatcher)
 
                     yield(TestInstance("Binary Append-only LSM Key Value Store") {
 
@@ -76,7 +78,7 @@ class KeyValueStores(private val iKVs: LogKeyValueStores,
                 for (encoder in encoders.strings(serializer)) {
 
                     val logKVSFactory = stringKeyValueStore.instance()
-                    val lsmKvsFactory = LSMKeyValueStoreFactory<String, String>(Tombstone.string)
+                    val lsmKvsFactory = LSMKeyValueStoreFactory<String, String>(Tombstone.string, dispatcher)
 
                     yield(TestInstance("String Append-only LSM Key Value Store") {
 

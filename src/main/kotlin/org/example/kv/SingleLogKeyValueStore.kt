@@ -6,7 +6,7 @@ import org.example.log.Log
 import org.example.possiblyArrayEquals
 
 private class SingleLogKeyValueStore<K, V>(override val log: Log<Map.Entry<K, V>>,
-                                            private val tombstone: V): LogBasedKeyValueStore<K, V> {
+                                           private val tombstone: V): LogBasedKeyValueStore<K, V> {
 
     override fun put(key: K, value: V) {
         append(key, value)
