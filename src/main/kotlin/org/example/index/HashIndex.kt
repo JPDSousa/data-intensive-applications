@@ -6,7 +6,9 @@ private class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): 
         index[key] = offset
     }
 
-    override fun getOffset(key: K) = index[key]
+    override fun getOffset(key: K): Long? {
+        return index[key]
+    }
 
     override fun putAllOffsets(pairs: Iterable<IndexEntry<K>>) {
         pairs.forEach { index[it.key] = it.offset }

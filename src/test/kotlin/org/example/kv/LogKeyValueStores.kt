@@ -20,9 +20,9 @@ class LogKeyValueStores(private val indexFactories: IndexFactories) {
     }
 
     @ExperimentalSerializationApi
-    fun binaryKeyValueStores(): Sequence<TestInstance<LogBasedKeyValueStoreFactory<ByteArray, ByteArray>>> {
+    fun binaryKeyValueStores(): Sequence<TestInstance<LogBasedKeyValueStoreFactory<Long, ByteArray>>> {
 
-        val singleKVs = singleKeyValueStores<ByteArray, ByteArray>(Tombstone.byte).toList()
+        val singleKVs = singleKeyValueStores<Long, ByteArray>(Tombstone.byte).toList()
 
         return singleKVs.asSequence() + indexedKeyValueStores(
                 indexFactories.instances(serializer()),

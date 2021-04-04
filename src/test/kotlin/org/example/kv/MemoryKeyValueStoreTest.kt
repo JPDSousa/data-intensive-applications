@@ -8,13 +8,13 @@ internal class MemoryKeyValueStoreTest: KeyValueStoreTest<String, String> {
     private val uniqueGenerator = AtomicLong()
 
     override fun instances() = sequenceOf(
-            TestInstance("Memory KV") {
-                MemoryKeyValueStore<String, String>()
-            }
+        TestInstance("Memory KV") {
+            MemoryKeyValueStore<String, String>()
+        }
     )
 
     override fun nextKey() = uniqueGenerator.getAndIncrement()
-            .toString()
+        .toString()
 
     override fun nextValue() = nextKey()
 }

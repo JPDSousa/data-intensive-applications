@@ -1,6 +1,7 @@
 package org.example.index
 
 import kotlinx.coroutines.CoroutineDispatcher
+import mu.KotlinLogging
 import org.example.encoder.Encoder
 import org.example.log.Log
 import org.example.log.LogEncoderFactory
@@ -8,6 +9,7 @@ import org.example.log.LogFactory
 import org.example.recurrent.OpsBasedRecurrentJob
 import org.example.recurrent.RecurrentJob
 import java.nio.file.Files.createFile
+import java.nio.file.Files.notExists
 import java.nio.file.Path
 
 interface CheckpointableIndex<K>: Index<K> {
@@ -49,12 +51,29 @@ class CheckpointableIndexFactory<K>(private val innerFactory: IndexFactory<K>,
                                     private val checkpointCycle: Long,
                                     private val coroutineDispatcher: CoroutineDispatcher): IndexFactory<K> {
 
-    override fun create(indexName: String): Index<K> = "index-$indexName.log"
-        .let { indexDir.resolve(it) }
-        .let { createFile(it) }
-        .let { entryLogFactory.create(it) }
-        .let { LogCheckpointableIndex(innerFactory.create(indexName), it) }
-        .let { RecurrentCheckpointableIndex(it, createRecurringCheckpoint(it)) }
+    private val logger = KotlinLogging.logger {}
+
+    override fun create(indexName: String): CheckpointableIndex<K> {
+
+        val indexPath = "index-$indexName.log"
+            .let { indexDir.resolve(it) }
+
+        val innerIndex = innerFactory.create(indexName)
+
+        val indexLog: Log<IndexEntry<K>>
+        if (notExists(indexPath)) {
+            logger.debug { "Creating index file." }
+            createFile(indexPath)
+            indexLog = entryLogFactory.create(indexPath)
+        } else {
+            logger.debug { "Index file already exists. Recovering index data." }
+            indexLog = entryLogFactory.create(indexPath)
+            indexLog.useEntries { innerIndex.putAllOffsets(it.asIterable()) }
+        }
+
+        return LogCheckpointableIndex(innerIndex, indexLog)
+            .let { RecurrentCheckpointableIndex(it, createRecurringCheckpoint(it)) }
+    }
 
     private fun createRecurringCheckpoint(index: CheckpointableIndex<K>): RecurrentJob {
 

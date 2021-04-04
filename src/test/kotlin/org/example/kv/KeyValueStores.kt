@@ -18,22 +18,23 @@ import org.example.size.SizeCalculator
 class KeyValueStores(private val iKVs: LogKeyValueStores,
                      private val logFactories: LogFactories,
                      private val encoders: Encoders,
+                     private val longCalculator: SizeCalculator<Long>,
                      private val byteArrayCalculator: SizeCalculator<ByteArray>,
                      private val stringSizeCalculator: SizeCalculator<String>,
                      private val resources: TestResources,
                      private val dispatcher: CoroutineDispatcher) {
 
     @ExperimentalSerializationApi
-    fun binaryKeyValueStores(): Sequence<TestInstance<KeyValueStore<ByteArray, ByteArray>>> = sequence {
+    fun binaryKeyValueStores(): Sequence<TestInstance<KeyValueStore<Long, ByteArray>>> = sequence {
 
-        val serializer: KSerializer<Map.Entry<ByteArray, ByteArray>> = DataEntrySerializer(serializer(), serializer())
+        val serializer: KSerializer<Map.Entry<Long, ByteArray>> = DataEntrySerializer(serializer(), serializer())
 
         for (binaryInstance in logFactories.binaryInstances()) {
             for (binaryKeyValueStore in iKVs.binaryKeyValueStores()) {
                 for (encoder in encoders.binaries(serializer)) {
 
                     val logKVSFactory = binaryKeyValueStore.instance()
-                    val lsmKvsFactory = LSMKeyValueStoreFactory<ByteArray, ByteArray>(Tombstone.byte, dispatcher)
+                    val lsmKvsFactory = LSMKeyValueStoreFactory<Long, ByteArray>(Tombstone.byte, dispatcher)
 
                     yield(TestInstance("Binary Append-only LSM Key Value Store") {
 
@@ -49,7 +50,7 @@ class KeyValueStores(private val iKVs: LogKeyValueStores,
                         val mergeStrategy = SequentialLogMergeStrategy(
                             segmentFactory,
                             segmentThreshold,
-                            byteArrayCalculator,
+                            longCalculator,
                             byteArrayCalculator
                         )
                         val segmentManager = SequentialSegmentManager(

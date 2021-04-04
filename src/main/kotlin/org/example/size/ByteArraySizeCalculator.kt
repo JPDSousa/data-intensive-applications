@@ -8,6 +8,12 @@ object ByteArraySizeCalculator: SizeCalculator<ByteArray> {
 
 }
 
+object LongSizeCalculator: SizeCalculator<Long> {
+
+    override fun sizeOf(value: Long) = Long.SIZE_BYTES
+
+}
+
 class StringSizeCalculator(private val charset: Charset,
                            private val byteArraySizeCalculator: SizeCalculator<ByteArray>): SizeCalculator<String> {
 
