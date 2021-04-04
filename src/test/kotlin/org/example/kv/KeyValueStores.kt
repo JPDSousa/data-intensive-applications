@@ -7,14 +7,11 @@ import org.example.DataEntrySerializer
 import org.example.TestInstance
 import org.example.TestResources
 import org.example.encoder.Encoders
-import org.example.kv.lsm.KeyValueLogMergeStrategy
-import org.example.kv.lsm.LSMKeyValueStoreFactory
-import org.example.kv.lsm.LogBasedSegmentFactory
-import org.example.kv.sstable.SSTableMergeStrategy
-import org.example.kv.sstable.SSTableSegmentFactory
+import org.example.kv.lsm.*
+import org.example.kv.lsm.sstable.SSTableMergeStrategy
+import org.example.kv.lsm.sstable.SSTableSegmentManager
 import org.example.log.LogEncoderFactory
 import org.example.log.LogFactories
-import org.example.lsm.SegmentDirectory
 import org.example.size.SizeCalculator
 
 class KeyValueStores(private val iKVs: LogKeyValueStores,
@@ -34,28 +31,34 @@ class KeyValueStores(private val iKVs: LogKeyValueStores,
                 for (encoder in encoders.binaries(serializer)) {
 
                     val logKVSFactory = binaryKeyValueStore.instance()
-                    val lsmKvsFactory = LSMKeyValueStoreFactory(
-                        logKVSFactory,
-                        Tombstone.byte
-                    )
+                    val lsmKvsFactory = LSMKeyValueStoreFactory<ByteArray, ByteArray>(Tombstone.byte)
 
                     yield(TestInstance("Binary Append-only LSM Key Value Store") {
 
                         val kvDir = resources.allocateTempDir("segmented-")
                         val pairLogFactory = LogEncoderFactory(binaryInstance.instance(), encoder.instance())
                         val segmentDirectory = SegmentDirectory(kvDir)
-                        val segmentFactory = LogBasedSegmentFactory(
+                        val segmentFactory = SegmentFactory(
                             segmentDirectory,
                             pairLogFactory,
-                            logKVSFactory
+                            logKVSFactory,
+                            segmentThreshold
                         )
-                        val mergeStrategy = KeyValueLogMergeStrategy(
+                        val mergeStrategy = SequentialLogMergeStrategy(
                             segmentFactory,
+                            segmentThreshold,
                             byteArrayCalculator,
                             byteArrayCalculator
                         )
+                        val segmentManager = SequentialSegmentManager(
+                            segmentDirectory,
+                            pairLogFactory,
+                            logKVSFactory,
+                            segmentThreshold,
+                            mergeStrategy
+                        )
 
-                        lsmKvsFactory.createLSMKeyValueStore(segmentFactory, mergeStrategy)
+                        lsmKvsFactory.createLSMKeyValueStore(segmentManager)
                     })
 
                 }
@@ -73,28 +76,34 @@ class KeyValueStores(private val iKVs: LogKeyValueStores,
                 for (encoder in encoders.strings(serializer)) {
 
                     val logKVSFactory = stringKeyValueStore.instance()
-                    val lsmKvsFactory = LSMKeyValueStoreFactory(
-                        logKVSFactory,
-                        Tombstone.string
-                    )
+                    val lsmKvsFactory = LSMKeyValueStoreFactory<String, String>(Tombstone.string)
 
                     yield(TestInstance("String Append-only LSM Key Value Store") {
 
                         val kvDir = resources.allocateTempDir("segmented-")
                         val pairLogFactory = LogEncoderFactory(stringInstance.instance(), encoder.instance())
                         val segmentDirectory = SegmentDirectory(kvDir)
-                        val segmentFactory = LogBasedSegmentFactory(
+                        val segmentFactory = SegmentFactory(
                             segmentDirectory,
                             pairLogFactory,
-                            logKVSFactory
+                            logKVSFactory,
+                            segmentThreshold
                         )
-                        val mergeStrategy = KeyValueLogMergeStrategy(
+                        val mergeStrategy = SequentialLogMergeStrategy(
                             segmentFactory,
+                            segmentThreshold,
                             stringSizeCalculator,
                             stringSizeCalculator
                         )
+                        val segmentManager = SequentialSegmentManager(
+                            segmentDirectory,
+                            pairLogFactory,
+                            logKVSFactory,
+                            segmentThreshold,
+                            mergeStrategy
+                        )
 
-                        lsmKvsFactory.createLSMKeyValueStore(segmentFactory, mergeStrategy)
+                        lsmKvsFactory.createLSMKeyValueStore(segmentManager)
                     })
 
                     yield(TestInstance("Binary SSTable LSM Key Value Store") {
@@ -102,21 +111,35 @@ class KeyValueStores(private val iKVs: LogKeyValueStores,
                         val kvDir = resources.allocateTempDir("segmented-")
                         val pairLogFactory = LogEncoderFactory(stringInstance.instance(), encoder.instance())
                         val segmentDirectory = SegmentDirectory(kvDir)
-                        val segmentFactory = SSTableSegmentFactory(
+                        val segmentFactory = SegmentFactory(
                             segmentDirectory,
                             pairLogFactory,
                             logKVSFactory,
-                            stringSizeCalculator,
-                            stringSizeCalculator
+                            segmentThreshold
                         )
                         val mergeStrategy = SSTableMergeStrategy(segmentFactory)
+                        val segmentManager = SSTableSegmentManager(
+                            segmentDirectory,
+                            pairLogFactory,
+                            logKVSFactory,
+                            mergeStrategy,
+                            segmentThreshold,
+                            stringSizeCalculator,
+                            stringSizeCalculator,
+                            Tombstone.string
+                        )
 
-                        lsmKvsFactory.createLSMKeyValueStore(segmentFactory, mergeStrategy)
+                        lsmKvsFactory.createLSMKeyValueStore(segmentManager)
                     })
 
                 }
             }
         }
+    }
+
+    companion object {
+
+        const val segmentThreshold: Long = 1024 * 1024
     }
 
 }

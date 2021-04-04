@@ -2,11 +2,11 @@ package org.example.kv
 
 import org.example.TestInstance
 import org.example.assertPossiblyArrayEquals
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.example.test
+import org.junit.jupiter.api.Assertions.assertAll
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.function.Executable
-import kotlin.streams.asStream
 
 @Suppress("FunctionName")
 interface KeyValueStoreTest<K, V> {
@@ -17,73 +17,56 @@ interface KeyValueStoreTest<K, V> {
 
     fun nextValue(): V
     
-    @TestFactory fun `absent key`() = instances().map { 
-        dynamicTest(it.name) {
-            assertNull(it.instance().get(nextKey()))
-        }
-    }.asStream()
+    @TestFactory fun `absent key`() = instances().test { kv ->
+        assertNull(kv.get(nextKey()))
+    }
 
-    @TestFactory fun `written value should be readable`() = instances().map {
-        dynamicTest(it.name) {
-            val kv = it.instance()
-            val key = nextKey()
-            val expected = nextValue()
+    @TestFactory fun `written value should be readable`() = instances().test { kv ->
+        val key = nextKey()
+        val expected = nextValue()
 
-            kv.put(key, expected)
-            assertPossiblyArrayEquals(expected, kv.get(key))
-        }
-    }.asStream()
+        kv.put(key, expected)
+        assertPossiblyArrayEquals(expected, kv.get(key))
+    }
 
-    @TestFactory fun `multiple keys are isolated`() = instances().map { instance ->
-        dynamicTest(instance.name) {
-            val kv = instance.instance()
-            val entries = (0..5).associate { Pair(nextKey(), nextValue()) }
+    @TestFactory fun `multiple keys are isolated`() = instances().test { kv ->
+        val entries = (0..5).associate { Pair(nextKey(), nextValue()) }
 
-            kv.putAll(entries)
+        kv.putAll(entries)
 
-            assertAll(entries.map { GetAssertion(kv, it.key, it.value) })
-        }
-    }.asStream()
+        assertAll(entries.map { GetAssertion(kv, it.key, it.value) })
+    }
 
-    @TestFactory fun `key update`() = instances().map {
-        dynamicTest(it.name) {
+    @TestFactory fun `key update`() = instances().test { kv ->
+        val key = nextKey()
+        val old = nextValue()
+        val new = nextValue()
 
-            val kv = it.instance()
-            val key = nextKey()
-            val old = nextValue()
-            val new = nextValue()
+        kv.put(key, old)
+        kv.put(key, new)
 
-            kv.put(key, old)
-            kv.put(key, new)
+        assertPossiblyArrayEquals(new, kv.get(key))
+    }
 
-            assertPossiblyArrayEquals(new, kv.get(key))
-        }
-    }.asStream()
+    @TestFactory fun `deleted key becomes absent`() = instances().test { kv ->
+        val key1 = nextKey()
+        val value1 = nextValue()
 
-    @TestFactory fun `deleted key becomes absent`() = instances().map {
-        dynamicTest(it.name) {
+        val key2 = nextKey()
+        val value2 = nextValue()
 
-            val kv = it.instance()
-
-            val key1 = nextKey()
-            val value1 = nextValue()
-
-            val key2 = nextKey()
-            val value2 = nextValue()
-
-            kv.put(key1, value1)
-            kv.put(key2, value2)
-            kv.delete(key1)
-            assertNull(kv.get(key1))
-            assertPossiblyArrayEquals(kv.get(key2), value2)
-        }
-    }.asStream()
+        kv.put(key1, value1)
+        kv.put(key2, value2)
+        kv.delete(key1)
+        assertNull(kv.get(key1))
+        assertPossiblyArrayEquals(kv.get(key2), value2)
+    }
 
 }
 
 internal class GetAssertion<K, V>(private val kv: KeyValueStore<K, V>,
-                            private val key: K,
-                            private val expected: V): Executable {
+                                  private val key: K,
+                                  private val expected: V): Executable {
 
     override fun execute() {
         assertPossiblyArrayEquals(expected, kv.get(key))

@@ -78,6 +78,7 @@ class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: IndexFactory<K
                                         private val nameGenerator: AtomicLong = AtomicLong(0))
     : LogBasedKeyValueStoreFactory<K, V> {
 
+    // TODO this is not accounting for recovery scenarios
     override fun createFromPair(log: Log<Map.Entry<K, V>>): LogBasedKeyValueStore<K, V> = IndexedKeyValueStore(
         indexFactory.create("Index${nameGenerator.getAndIncrement()}"),
         tombstone,

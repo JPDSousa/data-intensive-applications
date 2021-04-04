@@ -10,9 +10,6 @@ interface KeyValueStore<K, V> {
         entries.forEach(this::put)
     }
 
-    // TODO feature leak here. Tombstones are implementation details specific to SOME types of KVs
-    fun getWithTombstone(key: K): V?
-
     fun get(key: K): V?
 
     fun delete(key: K)
@@ -20,7 +17,7 @@ interface KeyValueStore<K, V> {
     fun clear()
 }
 
-interface LogBasedKeyValueStore<K, V>: KeyValueStore<K, V> {
+interface LogBasedKeyValueStore<K, V>: TombstoneKeyValueStore<K, V> {
 
     fun append(key: K, value: V): Long
 
@@ -33,6 +30,15 @@ interface LogBasedKeyValueStore<K, V>: KeyValueStore<K, V> {
     fun <R> useEntries(block: (Sequence<Map.Entry<K, V>>) -> R): R = log.useEntries(0) { block(it) }
 
     val log: Log<Map.Entry<K, V>>
+
+    val size: Long
+    get() = log.size
+
+}
+
+interface TombstoneKeyValueStore<K, V>: KeyValueStore<K, V> {
+
+    fun getWithTombstone(key: K): V?
 
 }
 

@@ -1,13 +1,12 @@
-package org.example.kv.sstable
+package org.example.kv.lsm.sstable
 
-import org.example.lsm.Segment
-import org.example.lsm.SegmentFactory
-import org.example.lsm.SegmentMergeStrategy
+import org.example.kv.lsm.Segment
+import org.example.kv.lsm.SegmentFactory
+import org.example.kv.lsm.SegmentMergeStrategy
 import java.util.*
 import kotlin.collections.ArrayList
 
-class SSTableMergeStrategy<K: Comparable<K>, V>(
-    private val segmentFactory: SegmentFactory<K, V>)
+class SSTableMergeStrategy<K: Comparable<K>, V>(private val segmentFactory: SegmentFactory<K, V>)
     : SegmentMergeStrategy<K, V> {
 
     override fun merge(segmentsToCompact: List<Segment<K, V>>)
@@ -18,7 +17,7 @@ class SSTableMergeStrategy<K: Comparable<K>, V>(
                           sequences: MutableList<Sequence<Map.Entry<K, V>>>): List<Segment<K, V>> {
 
         if (index < segments.size) {
-            return segments[index].log.useEntries {
+            return segments[index].logKV.useEntries {
                 sequences.add(it)
                 return@useEntries mergeSort(segments, index + 1, sequences)
             }
@@ -54,7 +53,7 @@ class SSTableMergeStrategy<K: Comparable<K>, V>(
                 }
             }
             if (min != null) {
-                openSegment.log.append(min)
+                openSegment.logKV.append(min.key, min.value)
                 if (minI >= 0) {
                     headElements[minI] = null
                 }

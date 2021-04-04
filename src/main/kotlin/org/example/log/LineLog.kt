@@ -16,7 +16,10 @@ import kotlin.streams.asStream
 // TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
 private class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log<String> {
 
-    private var size = if (exists(path)) size(path) else 0L
+    private var mutableSize = if (exists(path)) size(path) else 0L
+
+    override val size: Long
+        get() = mutableSize
 
     override fun append(entry: String): Long {
 
@@ -24,7 +27,7 @@ private class LineLog(private val path: Path, private val charset: Charset = UTF
 
         val line = entry.prependHeader()
         write(path, listOf(line), charset, CREATE, APPEND)
-        size += line.entrySize()
+        mutableSize += line.entrySize()
 
         return offset
     }
@@ -47,7 +50,7 @@ private class LineLog(private val path: Path, private val charset: Charset = UTF
             .asIterable()
         write(path, lines, charset, CREATE, APPEND)
 
-        size = offsets.last()
+        mutableSize = offsets.last()
 
         return sequenceOf(0L) + offsets.subList(0, offsets.size - 1)
     }
@@ -81,8 +84,6 @@ private class LineLog(private val path: Path, private val charset: Charset = UTF
                 .generateSequenceWithOffset()
                 .use { stream -> stream.asSequence().map { it.stripHeader() }.let(block) }
     }
-
-    override fun size(): Long = size
 
     override fun clear() { delete(path) }
 

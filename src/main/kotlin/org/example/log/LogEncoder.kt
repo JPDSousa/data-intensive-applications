@@ -19,7 +19,8 @@ class LogEncoder<S, T>(private val log: Log<T>,
         block(sequence.map { EntryWithOffset(it.offset, encoder.decode(it.entry)) })
     }
 
-    override fun size() = log.size()
+    override val size: Long
+    get() = log.size
 
     override fun clear() = log.clear()
 }

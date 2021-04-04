@@ -12,7 +12,7 @@ interface Log<T> {
 
     fun <R> useEntriesWithOffset(offset: Long = 0, block: (Sequence<EntryWithOffset<T>>) -> R): R
 
-    fun size(): Long
+    val size: Long
 
     fun clear()
 

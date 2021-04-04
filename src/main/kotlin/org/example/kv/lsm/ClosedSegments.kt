@@ -1,4 +1,4 @@
-package org.example.lsm
+package org.example.kv.lsm
 
 import mu.KotlinLogging
 import java.util.*
@@ -6,12 +6,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
-class ClosedSegments<K, V>(private val mergeStrategy: SegmentMergeStrategy<K, V>): Iterable<Segment<K, V>> {
+internal class ClosedSegments<K, V>(private val mergeStrategy: SegmentMergeStrategy<K, V>,
+                                    private var segments: MutableList<Segment<K, V>> = LinkedList())
+    : Iterable<Segment<K, V>> {
 
     private val logger = KotlinLogging.logger {}
 
     private val lock = ReentrantReadWriteLock()
-    private var segments = LinkedList<Segment<K, V>>()
 
     fun accept(openSegment: OpenSegment<K, V>) {
 
@@ -33,10 +34,10 @@ class ClosedSegments<K, V>(private val mergeStrategy: SegmentMergeStrategy<K, V>
 
             lock.write {
                 segments = compactedSegments
-            }
 
-            logger.debug { "Clearing dangling segments" }
-            segmentsToCompact.forEach { it.clear() }
+                logger.debug { "Clearing dangling segments" }
+                segmentsToCompact.forEach { it.clear() }
+            }
         }
     }
 

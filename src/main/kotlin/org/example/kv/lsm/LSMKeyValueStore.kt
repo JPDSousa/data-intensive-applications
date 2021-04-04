@@ -6,24 +6,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import org.example.kv.KeyValueStore
-import org.example.kv.LogBasedKeyValueStoreFactory
-import org.example.lsm.*
 import org.example.possiblyArrayEquals
 import java.util.concurrent.Executors
 
-internal class LSMKeyValueStore<K, V>(private val closedSegments: ClosedSegments<K, V>,
-                                      private val segmentFactory: SegmentFactory<K, V>,
-                                      private val tombstone: V,
-                                      private val kvFactory: LogBasedKeyValueStoreFactory<K, V>,
+interface LSMKeyValueStore<K, V>: KeyValueStore<K, V> {
+
+    fun compact()
+}
+
+private class OpsCycleDecorator<K, V>(private val decorated: LSMKeyValueStore<K, V>,
                                       private val compactCycle: Long = 1000,
-                                      private val compactPooling: Long = 1000 * 60): KeyValueStore<K, V> {
+                                      private val compactPooling: Long = 1000 * 60): LSMKeyValueStore<K, V> {
 
     private val logger = KotlinLogging.logger {}
 
     @Volatile
     private var opsWithoutCompact: Long = 0
-
-    private var openSegment = segmentFactory.createOpenSegment()
 
     init {
         val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -31,12 +29,10 @@ internal class LSMKeyValueStore<K, V>(private val closedSegments: ClosedSegments
             while (true) {
                 logger.trace { "Waiting $compactPooling to check again for the need of compacting" }
                 delay(compactPooling)
-                val opsWithoutCompact = this@LSMKeyValueStore.opsWithoutCompact
+                val opsWithoutCompact = this@OpsCycleDecorator.opsWithoutCompact
                 if (opsWithoutCompact >= compactCycle) {
                     logger.info { "Reached $opsWithoutCompact since last compact. Triggering compact operation" }
-                    closedSegments.compact()
-                    // this is possibly not thread safe
-                    this@LSMKeyValueStore.opsWithoutCompact -= opsWithoutCompact
+                    compact()
                 } else {
                     logger.debug { "$opsWithoutCompact ops since last compact. ${compactCycle - opsWithoutCompact} " +
                             "missing to trigger new compact operation"}
@@ -46,15 +42,74 @@ internal class LSMKeyValueStore<K, V>(private val closedSegments: ClosedSegments
     }
 
     override fun put(key: K, value: V) {
+        decorated.put(key, value)
+        opsWithoutCompact++
+    }
+
+    override fun get(key: K): V? = decorated.get(key)
+        .also { opsWithoutCompact++ }
+
+    override fun delete(key: K) {
+        decorated.delete(key)
+        opsWithoutCompact++
+    }
+
+    override fun clear() {
+        decorated.clear()
+        opsWithoutCompact = 0
+    }
+
+    override fun compact() {
+        val opsWithoutCompact = this.opsWithoutCompact
+        decorated.compact()
+        this.opsWithoutCompact -= opsWithoutCompact
+    }
+
+}
+
+private class SegmentedLSM<K, V>(private val segmentManager: SegmentManager<K, V>,
+                                 private val tombstone: V): LSMKeyValueStore<K, V> {
+
+    private val logger = KotlinLogging.logger {}
+
+    private val closedSegments = segmentManager.loadClosedSegments()
+    private var openSegment = segmentManager.createOpenSegment()
+
+    // assumes thread local environment
+    override fun compact() {
+        closedSegments.compact()
+    }
+
+    override fun put(key: K, value: V) {
         openSegment.put(key, value)
         if (openSegment.isFull()) {
             closedSegments.accept(openSegment)
-            openSegment = segmentFactory.createOpenSegment()
+            openSegment = segmentManager.createOpenSegment()
         }
     }
 
-    override fun get(key: K): V? = getWithTombstone(key)
-        .takeUnless { possiblyArrayEquals(it, tombstone) }
+    override fun get(key: K): V? {
+        val openValue = openSegment.getWithTombstone(key)
+
+        if (openValue != null) {
+            logger.debug { "Found key $key in open segment" }
+            return openValue
+                .takeUnless { possiblyArrayEquals(it, tombstone) }
+        }
+
+        var segCounter = 0
+        for (segment in closedSegments) {
+            logger.trace { "Searching segment ${segCounter++} for key $key" }
+            val value = segment.logKV.getWithTombstone(key)
+
+            if (value != null) {
+                logger.debug { "Found key $key in segment $segCounter" }
+                return value
+                    .takeUnless { possiblyArrayEquals(it, tombstone) }
+            }
+        }
+        return null
+    }
 
     override fun delete(key: K) {
         openSegment.delete(key)
@@ -65,43 +120,16 @@ internal class LSMKeyValueStore<K, V>(private val closedSegments: ClosedSegments
         closedSegments.clear()
     }
 
-    override fun getWithTombstone(key: K): V? {
-        val openValue = openSegment.getWithTombstone(key)
-
-        if (openValue != null) {
-            logger.debug { "Found key $key in open segment" }
-            return openValue
-        }
-
-        var segCounter = 0
-        for (segment in closedSegments) {
-            logger.trace { "Searching segment ${segCounter++} for key $key" }
-            val kvSegment = kvFactory.createFromPair(segment.log)
-            val value = kvSegment.getWithTombstone(key)
-
-            if (value != null) {
-                logger.debug { "Found key $key in segment $segCounter" }
-                return value
-            }
-        }
-        return null
-    }
 }
 
-class LSMKeyValueStoreFactory<K, V>(
-    private val logKVSFactory: LogBasedKeyValueStoreFactory<K, V>,
-    private val tombstone: V
-) {
+class LSMKeyValueStoreFactory<K, V>(private val tombstone: V) {
 
-    fun createLSMKeyValueStore(segmentFactory: SegmentFactory<K, V>,
-                               mergeStrategy: SegmentMergeStrategy<K, V>): KeyValueStore<K, V> {
+    fun createLSMKeyValueStore(segmentManager: SegmentManager<K, V>): LSMKeyValueStore<K, V> {
 
-        return LSMKeyValueStore(
-            ClosedSegments(mergeStrategy),
-            segmentFactory,
+        return SegmentedLSM(
+            segmentManager,
             tombstone,
-            logKVSFactory,
-        )
+        ).let { OpsCycleDecorator(it) }
     }
 
 }

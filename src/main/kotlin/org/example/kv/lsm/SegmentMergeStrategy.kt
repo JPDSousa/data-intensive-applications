@@ -1,4 +1,4 @@
-package org.example.lsm
+package org.example.kv.lsm
 
 interface SegmentMergeStrategy<K, V> {
 

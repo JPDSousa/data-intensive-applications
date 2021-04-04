@@ -13,7 +13,10 @@ import java.util.zip.CRC32
 
 private class BinaryLog(private val path: Path): Log<ByteArray> {
 
-    private var size = path.size()
+    private var mutableSize = path.size()
+
+    override val size: Long
+        get() = mutableSize
 
     override fun append(entry: ByteArray): Long {
 
@@ -21,7 +24,7 @@ private class BinaryLog(private val path: Path): Log<ByteArray> {
 
         path.writeOnly { it.writeEntry(entry) }
 
-        size += headerSize + entry.size
+        mutableSize += headerSize + entry.size
 
         return offset
     }
@@ -43,7 +46,7 @@ private class BinaryLog(private val path: Path): Log<ByteArray> {
             }
         }
 
-        size = offsets.last()
+        mutableSize = offsets.last()
 
         return sequenceOf(0L) + offsets.subList(0, offsets.size - 1)
     }
@@ -67,8 +70,6 @@ private class BinaryLog(private val path: Path): Log<ByteArray> {
             block(EntryWithOffsetIterator(it).asSequence())
         }
     }
-
-    override fun size() = size
 
     override fun clear() { delete(path) }
 

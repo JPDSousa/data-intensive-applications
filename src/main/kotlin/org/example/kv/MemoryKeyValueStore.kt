@@ -12,5 +12,4 @@ class MemoryKeyValueStore<K, V>(private val map: MutableMap<K, V> = mutableMapOf
 
     override fun clear() { map.clear() }
 
-    override fun getWithTombstone(key: K): V? = get(key)
 }

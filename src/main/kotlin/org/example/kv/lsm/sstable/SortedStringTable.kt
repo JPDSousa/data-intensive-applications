@@ -1,12 +1,12 @@
-package org.example.kv.sstable
+package org.example.kv.lsm.sstable
 
 import org.example.kv.LogBasedKeyValueStore
 import org.example.kv.LogBasedKeyValueStoreFactory
 import org.example.log.LogFactory
-import org.example.lsm.OpenSegment
-import org.example.lsm.Segment
-import org.example.lsm.SegmentDirectory
-import org.example.lsm.SegmentFactory
+import org.example.kv.lsm.OpenSegment
+import org.example.kv.lsm.Segment
+import org.example.kv.lsm.SegmentDirectory
+import org.example.kv.lsm.SegmentManager
 import org.example.size.SizeCalculator
 import java.util.*
 
@@ -14,8 +14,9 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
                                                         private val dump: LogBasedKeyValueStore<K, V>,
                                                         private val keySize: SizeCalculator<K>,
                                                         private val valueSize: SizeCalculator<V>,
-                                                        private var dumped: Boolean = false,
-                                                        private val segmentThreshold: Long = 1024 * 1024)
+                                                        private val tombstone: V,
+                                                        private val segmentThreshold: Long,
+                                                        private var dumped: Boolean = false)
     : OpenSegment<K, V> {
 
     private var memCacheSize: Long = 0L
@@ -39,7 +40,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
     override fun delete(key: K) {
         when(dumped) {
             true -> throw IllegalStateException("Cannot delete entries to a SSTable which has already been dumped.")
-            false -> memTable.remove(key)
+            false -> memTable[key] = tombstone
         }
     }
 
@@ -52,17 +53,19 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
 
     private val size: Long
     get() = when (dumped) {
-        true -> dump.log.size()
+        true -> dump.size
         false -> memCacheSize
     }
 
     override fun closeSegment(): Segment<K, V> = when(dumped) {
         true -> throw IllegalStateException("Cannot dump a SSTable which has already been dumped.")
         false -> {
+            // TODO we might want to prune tombstones to optimize storage, or leave this as is to optimize reads of
+            //      deleted keys
             memTable.forEach(dump::append)
             dumped = true
             memTable.clear()
-            Segment(dump.log, segmentThreshold)
+            Segment(dump, segmentThreshold)
         }
     }
 
@@ -72,16 +75,19 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
 
 }
 
-class SSTableSegmentFactory<K: Comparable<K>, V>(private val segmentDirectory: SegmentDirectory,
+class SSTableSegmentManager<K: Comparable<K>, V>(private val segmentDirectory: SegmentDirectory,
                                                  private val logFactory: LogFactory<Map.Entry<K, V>>,
                                                  private val keyValueStoreFactory: LogBasedKeyValueStoreFactory<K, V>,
+                                                 mergeStrategy: SSTableMergeStrategy<K, V>,
+                                                 private val segmentThreshold: Long,
                                                  private val keySize: SizeCalculator<K>,
-                                                 private val valueSize: SizeCalculator<V>)
-    : SegmentFactory<K, V>(segmentDirectory, logFactory) {
+                                                 private val valueSize: SizeCalculator<V>,
+                                                 private val tombstone: V)
+    : SegmentManager<K, V>(segmentDirectory, logFactory, keyValueStoreFactory, mergeStrategy, segmentThreshold) {
 
     override fun createOpenSegment(): OpenSegment<K, V> = segmentDirectory
         .createSegmentFile()
         .let { logFactory.create(it) }
         .let { keyValueStoreFactory.createFromPair(it) }
-        .let { SortedMapStringTable(TreeMap(), it, keySize, valueSize) }
+        .let { SortedMapStringTable(TreeMap(), it, keySize, valueSize, tombstone, segmentThreshold) }
 }
