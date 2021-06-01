@@ -1,19 +1,32 @@
 package org.example.log
 
+import org.example.concepts.Delete
+import org.example.concepts.Read
+import org.example.concepts.Write
+import org.example.concepts.WriteTypes.SEQUENTIAL
 import java.nio.file.Path
 
+/**
+ * An append-only data structure.
+ *
+ * Logs are broken down by entries.
+ */
 interface Log<T> {
 
-    fun append(entry: T): Long
+    /**
+     * Appends *entry* to the end of the data structure.
+     */
+    @Write(SEQUENTIAL) fun append(entry: T): Long
 
-    fun appendAll(entries: Sequence<T>): Sequence<Long>
+    @Write(SEQUENTIAL) fun appendAll(entries: Sequence<T>): Sequence<Long>
 
-    fun <R> useEntries(offset: Long = 0, block: (Sequence<T>) -> R): R
+    @Read fun <R> useEntries(offset: Long = 0, block: (Sequence<T>) -> R): R
 
-    fun <R> useEntriesWithOffset(offset: Long = 0, block: (Sequence<EntryWithOffset<T>>) -> R): R
+    @Read fun <R> useEntriesWithOffset(offset: Long = 0, block: (Sequence<EntryWithOffset<T>>) -> R): R
 
     val size: Long
 
+    @Delete
     fun clear()
 
 }
