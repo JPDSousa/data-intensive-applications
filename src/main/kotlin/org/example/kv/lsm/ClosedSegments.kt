@@ -27,6 +27,7 @@ internal class ClosedSegments<K, V>(private val mergeStrategy: SegmentMergeStrat
 
     internal fun compact() {
 
+        // TODO improve/relax locking
         lock.read {
             val segmentsToCompact = LinkedList(segments)
             logger.debug { "Triggering a compact operation" }
