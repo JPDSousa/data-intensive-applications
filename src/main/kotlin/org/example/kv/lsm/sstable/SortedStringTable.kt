@@ -32,8 +32,9 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
         }
     }
 
-    override fun get(key: K): V? = when(dumped) {
-        true -> dump.get(key)
+    override fun get(key: K, offset: Long?): V? = when(dumped) {
+        true -> dump.get(key, offset)
+        // offset is ignored here. Is this problematic?
         false -> memTable[key]
     }
 
@@ -69,7 +70,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
         }
     }
 
-    override fun getWithTombstone(key: K): V? = get(key)
+    override fun getWithTombstone(key: K, offset: Long?): V? = get(key)
 
     override fun isFull(): Boolean = size >= segmentThreshold
 

@@ -1,6 +1,9 @@
-package org.example.kv.lsm
+package org.example.kv.lsm.sequential
 
 import mu.KotlinLogging
+import org.example.kv.lsm.Segment
+import org.example.kv.lsm.SegmentFactory
+import org.example.kv.lsm.SegmentMergeStrategy
 import org.example.size.SizeCalculator
 import java.util.*
 

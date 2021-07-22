@@ -26,9 +26,7 @@ private class IndexedKeyValueStore<K, V>(
         }
     }
 
-    private fun getRaw(key: K, nullifyTombstone: Boolean): V? {
-
-        val offset = index.getOffset(key)
+    private fun getRaw(key: K, offset: Long?, nullifyTombstone: Boolean): V? {
 
         if (offset == tombstoneIndex) {
             return if (nullifyTombstone) null else tombstone
@@ -43,9 +41,17 @@ private class IndexedKeyValueStore<K, V>(
                 ?.value
     }
 
-    override fun getWithTombstone(key: K) = getRaw(key, false)
+    override fun getWithTombstone(key: K, offset: Long?) = getRaw(
+        key,
+        offset ?: index.getOffset(key),
+        false
+    )
 
-    override fun get(key: K) = getRaw(key, true)
+    override fun get(key: K, offset: Long?) = getRaw(
+        key,
+        offset ?: index.getOffset(key),
+        true
+    )
 
     override fun delete(key: K) {
         logKV.delete(key)

@@ -32,13 +32,13 @@ private class SingleLogKeyValueStore<K, V>(override val log: Log<Map.Entry<K, V>
         }
     }
 
-    override fun get(key: K, offset: Long) = getWithTombstone(key)
+    override fun get(key: K, offset: Long?) = getWithTombstone(key, offset)
             ?.takeUnless { possiblyArrayEquals(it, tombstone) }
 
     override fun getWithOffset(key: K) = log.useEntriesWithOffset { it.findLastKey(key) }
             ?.takeUnless { possiblyArrayEquals(it.value, tombstone) }
 
-    override fun getWithTombstone(key: K): V? = log.useEntries(0) { it.findLastKey(key) }
+    override fun getWithTombstone(key: K, offset: Long?): V? = log.useEntries(offset ?: 0L) { it.findLastKey(key) }
 
     private fun Sequence<Map.Entry<K, V>>.findLastKey(key: K): V? = this
             .findLast { possiblyArrayEquals(key, it.key) }?.value

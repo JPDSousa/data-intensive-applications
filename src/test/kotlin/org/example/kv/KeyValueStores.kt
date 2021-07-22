@@ -9,6 +9,8 @@ import org.example.TestInstance
 import org.example.TestResources
 import org.example.encoder.Encoders
 import org.example.kv.lsm.*
+import org.example.kv.lsm.sequential.SequentialLogMergeStrategy
+import org.example.kv.lsm.sequential.SequentialSegmentManager
 import org.example.kv.lsm.sstable.SSTableMergeStrategy
 import org.example.kv.lsm.sstable.SSTableSegmentManager
 import org.example.log.LogEncoderFactory
