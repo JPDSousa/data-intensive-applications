@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "1.4.10"
-    kotlin("plugin.serialization") version "1.4.10"
+    kotlin("jvm") version "1.5.20"
+    kotlin("plugin.serialization") version "1.5.20"
 }
 
 repositories {
@@ -8,7 +8,6 @@ repositories {
 }
 
 dependencies {
-    implementation(kotlin("stdlib-jdk8"))
     implementation("commons-io:commons-io:2.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
     implementation("io.github.microutils:kotlin-logging:2.0.3")
@@ -22,10 +21,10 @@ dependencies {
 
 tasks {
     compileKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.jvmTarget = "16"
     }
     compileTestKotlin {
-        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions.jvmTarget = "16"
     }
 }
 
