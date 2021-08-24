@@ -1,85 +1,41 @@
 package org.example.index
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.KSerializer
+import org.example.TestGenerator
 import org.example.TestInstance
-import org.example.TestResources
-import org.example.encoder.JsonStringEncoder
-import org.example.encoder.ProtobufBinaryEncoder
-import org.example.log.LogFactories
-import java.util.concurrent.atomic.AtomicLong
+import org.example.generator.Generator
+import org.koin.dsl.module
 
-class CheckpointableIndexes(private val resources: TestResources,
-                            private val logs: LogFactories,
-                            private val dispatcher: CoroutineDispatcher) {
+val checkpointableIndexModule = module {
 
-    private val generator = AtomicLong()
+    single<StringCheckpointableIndexes> { DelegateStringCheckpointableIndexes(
+        GenericCheckpointableIndexes(get<StringCheckpointableIndexFactories>())
+    )}
 
-    @ExperimentalSerializationApi
-    fun <K : Comparable<K>> indexes(serializer: KSerializer<IndexEntry<K>>)
-            : Sequence<TestInstance<CheckpointableIndex<K>>>
-            = comparableIndexes(serializer) + nonComparableIndexes(serializer)
+    single<LongCheckpointableIndexes> { DelegateLongCheckpointableIndexes(
+        GenericCheckpointableIndexes(get<LongCheckpointableIndexFactories>())
+    )}
 
-    @ExperimentalSerializationApi
-    fun <K: Comparable<K>> comparableIndexes(serializer: KSerializer<IndexEntry<K>>):
-            Sequence<TestInstance<CheckpointableIndex<K>>> = indexes(TreeIndexFactory(), serializer)
+}
 
-    @ExperimentalSerializationApi
-    fun <K> nonComparableIndexes(serializer: KSerializer<IndexEntry<K>>)
-            : Sequence<TestInstance<CheckpointableIndex<K>>> = indexes(HashIndexFactory(), serializer)
+interface CheckpointableIndexes<K>: TestGenerator<CheckpointableIndex<K>>
 
-    @ExperimentalSerializationApi
-    private fun <K> indexes(innerIndexFactory: IndexFactory<K>, serializer: KSerializer<IndexEntry<K>>):
-            Sequence<TestInstance<CheckpointableIndex<K>>> = indexFactories(innerIndexFactory, serializer)
-        .map { case ->
-            TestInstance(case.name) {
-                case.instance().create("CheckpointableIndex${generator.getAndIncrement()}")
-            }
-        }
+interface StringCheckpointableIndexes: CheckpointableIndexes<String>
 
-    @ExperimentalSerializationApi
-    fun <K> nonComparableIndexFactories(serializer: KSerializer<IndexEntry<K>>) = indexFactories(
-        HashIndexFactory(),
-        serializer
-    )
+interface LongCheckpointableIndexes: CheckpointableIndexes<Long>
 
-    @ExperimentalSerializationApi
-    fun <K: Comparable<K>> comparableIndexFactories(serializer: KSerializer<IndexEntry<K>>) = indexFactories(
-        TreeIndexFactory(),
-        serializer
-    )
+private class DelegateStringCheckpointableIndexes(private val delegate: CheckpointableIndexes<String>)
+    : StringCheckpointableIndexes, CheckpointableIndexes<String> by delegate
 
-    @ExperimentalSerializationApi
-    private fun <K> indexFactories(innerIndexFactory: IndexFactory<K>, serializer: KSerializer<IndexEntry<K>>)
-    : Sequence<TestInstance<CheckpointableIndexFactory<K>>> = sequence {
+private class DelegateLongCheckpointableIndexes(private val delegate: CheckpointableIndexes<Long>)
+    : LongCheckpointableIndexes, CheckpointableIndexes<Long> by delegate
 
-        for (lineLogInstance in logs.lineLogInstances()) {
+private class GenericCheckpointableIndexes<K>(private val indexFactories: CheckpointableIndexFactories<K>)
+    : CheckpointableIndexes<K> {
 
-            yield(TestInstance("Checkpointable String Index ~ ${lineLogInstance.name}") {
-                val indexDir = resources.allocateTempDir("index-string-")
-                CheckpointableIndexFactory(
-                    innerIndexFactory,
-                    indexDir,
-                    IndexEntryLogFactory(lineLogInstance.instance(), JsonStringEncoder(serializer)),
-                    10_000,
-                    dispatcher
-                )
-            })
-        }
-
-        for (binaryInstance in logs.binaryInstances()) {
-
-            yield(TestInstance("Checkpointable Binary Index ~ ${binaryInstance.name}") {
-                val indexDir = resources.allocateTempDir("index-binary-")
-                CheckpointableIndexFactory(
-                    innerIndexFactory,
-                    indexDir,
-                    IndexEntryLogFactory(binaryInstance.instance(), ProtobufBinaryEncoder(serializer)),
-                    10_000,
-                    dispatcher
-                )
-            })
+    override fun generate(): Sequence<TestInstance<CheckpointableIndex<K>>> = indexFactories.generate().map {
+        TestInstance("Checkpointable index from ${it.name}") {
+            it.instance().create("Checkpointable index from ${it.name}")
         }
     }
+
 }

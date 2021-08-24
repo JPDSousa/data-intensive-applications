@@ -3,46 +3,70 @@ package org.example.log
 import kotlinx.serialization.ExperimentalSerializationApi
 import org.example.TestInstance
 import org.example.TestResources
-import org.example.encoder.Encoders
+import org.example.application
+import org.example.generator.StringGenerator
 import org.example.test
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.TestInfo
 import java.util.concurrent.atomic.AtomicLong
 
 internal class LineLogTest: LogTest<String> {
 
-    private val uniqueId = AtomicLong()
+    private val valueIterator = stringGenerator.generate().iterator()
 
-    @TestFactory
-    fun `entries should be partitioned by lines`() = instances().test { log ->
-        val entries = (1..100).map { nextValue() }
-        val expected = entries.joinToString("\n")
+    override fun instances() = generator.generate()
 
-        entries.forEach { log.append(it) }
-
-        val content = log.useEntries { it.joinToString("\n") }
-
-        assertEquals(expected, content)
+    override fun nextValue() = when {
+        valueIterator.hasNext() -> valueIterator.next()
+        else -> throw NoSuchElementException("No more values")
     }
 
-    override fun instances() = logs.lineLogInstances()
+    @TestFactory
+    fun `entries should be partitioned by lines`(info: TestInfo) = instances().test(info) { log ->
+        entriesShouldBePartitionedByLines(log) { entries ->
+            entries.forEach { log.append(it) }
+        }
+    }
 
-    override fun nextValue() = uniqueId.getAndIncrement()
-            .toString()
+    @TestFactory
+    fun `entries should be partitioned by lines (appendAll(`(info: TestInfo) = instances().test(info) { log ->
+        entriesShouldBePartitionedByLines(log) { entries ->
+            log.appendAll(entries)
+        }
+    }
+
+    private fun entriesShouldBePartitionedByLines(log: Log<String>, append: (Sequence<String>) -> Unit) {
+
+        val entries = (1..100).map { nextValue() }
+            .asSequence()
+        val expected = entries.joinToString("\n")
+
+        val initialSize = log.useEntries { it.count() }
+
+        append(entries)
+
+        val testContent = log.useEntries { it.drop(initialSize).joinToString("\n") }
+
+        assertEquals(expected, testContent)
+    }
 
     companion object {
 
         @JvmStatic
-        private val resources = TestResources()
+        private val application = application()
 
         @JvmStatic
-        private val logs = Logs(resources, LogFactories(Encoders()))
+        private val stringGenerator: StringGenerator = application.koin.get()
+
+        @JvmStatic
+        private val generator: StringLogs = application.koin.get(lineLogQ)
 
         @JvmStatic
         @AfterAll
         fun closeResources() {
-            resources.close()
+            application.close()
         }
 
     }
@@ -52,11 +76,10 @@ internal class LineLogTest: LogTest<String> {
 internal class LineLogFactoryTest: LogFactoryTest<String> {
 
     @ExperimentalSerializationApi
-    override fun instances(): Sequence<TestInstance<LogFactory<String>>> = logFactories
-        .stringInstances()
+    override fun instances(): Sequence<TestInstance<LogFactory<String>>> = logFactories.generate()
 
     override val resources: TestResources
-        get() = LineLogFactoryTest.resources
+        get() = application.koin.get()
 
     private val uniqueGenerator = AtomicLong()
 
@@ -66,15 +89,15 @@ internal class LineLogFactoryTest: LogFactoryTest<String> {
     companion object {
 
         @JvmStatic
-        private val resources = TestResources()
+        private val application = application()
 
         @JvmStatic
-        private val logFactories = LogFactories(Encoders())
+        private val logFactories: StringLogFactories = application.koin.get(lineLogQ)
 
         @JvmStatic
         @AfterAll
         fun closeResources() {
-            resources.close()
+            application.close()
         }
     }
 }

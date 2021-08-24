@@ -33,6 +33,8 @@ interface Log<T> {
 
     @Read(ONE) val size: Long
 
+    @Read(ONE) val lastOffset: Long
+
     @Delete(ZERO)
     fun clear()
 

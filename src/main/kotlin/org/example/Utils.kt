@@ -1,16 +1,17 @@
 package org.example
 
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.descriptors.SerialKind
-import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.decodeStructure
 import kotlinx.serialization.encoding.encodeStructure
+import kotlinx.serialization.serializer
+import java.time.Instant
 
 fun possiblyArrayEquals(val1: Any?, val2: Any?): Boolean {
 
@@ -21,11 +22,20 @@ fun possiblyArrayEquals(val1: Any?, val2: Any?): Boolean {
     return val1 == val2
 }
 
+class InstantSerializer : KSerializer<Instant> {
+
+    override val descriptor = PrimitiveSerialDescriptor("InstantEpochAsMillis", PrimitiveKind.LONG)
+
+    override fun deserialize(decoder: Decoder): Instant = Instant.ofEpochMilli(decoder.decodeLong())
+
+    override fun serialize(encoder: Encoder, value: Instant) = encoder.encodeLong(value.toEpochMilli())
+}
+
 @Serializable(with = DataEntrySerializer::class)
 data class DataEntry<K, V>(override val key: K, override val value: V) : Map.Entry<K, V>
 
 class DataEntrySerializer<K, V>(private val keySerializer: KSerializer<K>,
-                                private val valueSerializer: KSerializer<V>) : KSerializer<Map.Entry<K, V>> {
+                                private val valueSerializer: KSerializer<V>): KSerializer<Map.Entry<K, V>> {
 
     override fun deserialize(decoder: Decoder): Map.Entry<K, V> = decoder.decodeStructure(descriptor) {
 

@@ -1,5 +1,7 @@
 package org.example.index
 
+import org.koin.core.qualifier.named
+
 private class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): Index<K> {
 
     override fun putOffset(key: K, offset: Long) {
@@ -14,7 +16,14 @@ private class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): 
         pairs.forEach { index[it.key] = it.offset }
     }
 
-    override fun entries() = index.map { IndexEntry(it.key, it.value) }.asSequence()
+    override fun <R> useEntries(block: (Sequence<IndexEntry<K>>) -> R) = index
+        .map { IndexEntry(it.key, it.value) }
+        .asSequence()
+        .let(block)
+
+    override fun clear() {
+        index.clear()
+    }
 
 }
 
@@ -22,3 +31,5 @@ class HashIndexFactory<K>: IndexFactory<K> {
 
     override fun create(indexName: String): Index<K> = HashIndex()
 }
+
+val hashIndexQ = named("hashIndex")

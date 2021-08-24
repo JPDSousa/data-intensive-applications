@@ -1,31 +1,26 @@
 package org.example.index
 
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.serializer
 import org.example.TestInstance
-import org.example.TestResources
-import org.example.encoder.Encoders
-import org.example.log.LogFactories
+import org.example.application
+import org.example.generator.LongGenerator
+import org.example.generator.StringGenerator
 import org.example.test
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestFactory
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicLong
+import org.junit.jupiter.api.TestInfo
 
 internal abstract class CheckpointableIndexTest<K>: IndexTest<K> {
-
-    internal val uniqueGenerator = AtomicLong()
 
     abstract override fun instances(): Sequence<TestInstance<CheckpointableIndex<K>>>
 
     abstract fun factories(): Sequence<TestInstance<CheckpointableIndexFactory<K>>>
 
-    @TestFactory fun `checkpointable index should be recoverable`() = factories().test { factory ->
+    @TestFactory fun `checkpointable index should be recoverable`(info: TestInfo) = factories().test(info) { factory ->
 
-        val expected = (1..100).map { IndexEntry(nextKey(), it.toLong()) }
+        val expected = (1L..100L).map { IndexEntry(nextKey(), it) }
 
         val indexName = "2bRecovered-${nextKey()}"
         val index = factory.create(indexName)
@@ -36,23 +31,26 @@ internal abstract class CheckpointableIndexTest<K>: IndexTest<K> {
         // should recover the index from file
         val recoveredIndexed = factory.create(indexName)
 
-        expected.forEach { assertEquals(it.offset, recoveredIndexed.getOffset(it.key)) }
+        expected.forEach {
+            assertEquals(it.offset, recoveredIndexed.getOffset(it.key))
+        }
     }
 
     companion object {
 
-        internal val resources = TestResources()
+        @JvmStatic
+        internal var application = application()
 
         @JvmStatic
-        internal val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-
-        @JvmStatic
-        internal val indexes = CheckpointableIndexes(resources, LogFactories(Encoders()), dispatcher)
+        @BeforeAll
+        fun createApplication() {
+            application = application()
+        }
 
         @JvmStatic
         @AfterAll
         fun closeResources() {
-            resources.close()
+            application.close()
         }
 
     }
@@ -61,27 +59,60 @@ internal abstract class CheckpointableIndexTest<K>: IndexTest<K> {
 
 internal class CheckpointableStringIndexTest: CheckpointableIndexTest<String>() {
 
-    @ExperimentalSerializationApi
-    override fun instances(): Sequence<TestInstance<CheckpointableIndex<String>>> = indexes.indexes(serializer())
-
-    override fun nextKey() = uniqueGenerator.getAndIncrement().toString()
+    private val valueIterator = valueGenerator.generate().iterator()
 
     @ExperimentalSerializationApi
-    override fun factories(): Sequence<TestInstance<CheckpointableIndexFactory<String>>> = indexes
-        .comparableIndexFactories(serializer())
+    override fun instances(): Sequence<TestInstance<CheckpointableIndex<String>>> = indexes.generate()
+
+    override fun nextKey() = when {
+        valueIterator.hasNext() -> valueIterator.next()
+        else -> throw NoSuchElementException("No more keys")
+    }
+
+    @ExperimentalSerializationApi
+    override fun factories(): Sequence<TestInstance<CheckpointableIndexFactory<String>>> = factories.generate()
+
+    companion object {
+
+        @JvmStatic
+        private val valueGenerator: StringGenerator = application.koin.get()
+
+        @JvmStatic
+        private val indexes = application.koin.get<StringCheckpointableIndexes>()
+
+        @JvmStatic
+        private val factories = application.koin.get<StringCheckpointableIndexFactories>()
+    }
 
 }
 
-internal class CheckpointableBinaryLongTest: CheckpointableIndexTest<Long>() {
+internal class CheckpointableLongTest: CheckpointableIndexTest<Long>() {
+
+    private val valueIterator = valueGenerator.generate().iterator()
 
     @ExperimentalSerializationApi
     override fun instances(): Sequence<TestInstance<CheckpointableIndex<Long>>> = indexes
-        .nonComparableIndexes(serializer())
+        .generate()
 
-    override fun nextKey() = uniqueGenerator.getAndIncrement()
+    override fun nextKey() = when {
+        valueIterator.hasNext() -> valueIterator.next()
+        else -> throw NoSuchElementException("No more keys")
+    }
 
     @ExperimentalSerializationApi
-    override fun factories(): Sequence<TestInstance<CheckpointableIndexFactory<Long>>> = indexes
-        .nonComparableIndexFactories(serializer())
+    override fun factories(): Sequence<TestInstance<CheckpointableIndexFactory<Long>>> = factories
+        .generate()
 
+    companion object {
+
+        @JvmStatic
+        private val valueGenerator: LongGenerator = application.koin.get()
+
+        @JvmStatic
+        private val indexes = application.koin.get<LongCheckpointableIndexes>()
+
+        @JvmStatic
+        private val factories = application.koin.get<LongCheckpointableIndexFactories>()
+
+    }
 }

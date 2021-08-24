@@ -1,9 +1,8 @@
 package org.example.kv.lsm
 
-import org.example.kv.LogBasedKeyValueStore
-import org.example.kv.LogBasedKeyValueStoreFactory
+import org.example.kv.LogKeyValueStore
+import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.TombstoneKeyValueStore
-import org.example.log.Log
 import org.example.log.LogFactory
 import java.nio.file.Files
 import java.nio.file.Files.createFile
@@ -13,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.streams.asSequence
 
 class Segment<K, V> (
-    val logKV: LogBasedKeyValueStore<K, V>,
+    val logKV: LogKeyValueStore<K, V>,
     private val segmentThreshold: Long) {
 
     fun isFull(): Boolean = size >= segmentThreshold
@@ -34,7 +33,7 @@ interface OpenSegment<K, V>: TombstoneKeyValueStore<K, V> {
 abstract class SegmentManager<K, V>(
     private val directory: SegmentDirectory,
     private val logFactory: LogFactory<Map.Entry<K, V>>,
-    private val logKVFactory: LogBasedKeyValueStoreFactory<K, V>,
+    private val logKVFactory: LogKeyValueStoreFactory<K, V>,
     private val mergeStrategy: SegmentMergeStrategy<K, V>,
     private val segmentThreshold: Long)  {
 
@@ -53,7 +52,7 @@ abstract class SegmentManager<K, V>(
 
 class SegmentFactory<K, V>(private val directory: SegmentDirectory,
                            private val logFactory: LogFactory<Map.Entry<K, V>>,
-                           private val logKVFactory: LogBasedKeyValueStoreFactory<K, V>,
+                           private val logKVFactory: LogKeyValueStoreFactory<K, V>,
                            private val segmentThreshold: Long) {
 
     fun createSegment(): Segment<K, V> = directory

@@ -1,5 +1,6 @@
 package org.example.log
 
+import org.koin.core.qualifier.named
 import java.io.BufferedOutputStream
 import java.io.OutputStream
 import java.io.RandomAccessFile
@@ -8,25 +9,21 @@ import java.nio.file.Files.*
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
-import java.util.*
 import java.util.zip.CRC32
 
-private class BinaryLog(private val path: Path): Log<ByteArray> {
-
-    private var mutableSize = path.size()
-
-    override val size: Long
-        get() = mutableSize
+private class BinaryLog(private val path: Path,
+                        override var lastOffset: Long,
+                        override var size: Long): Log<ByteArray> {
 
     override fun append(entry: ByteArray): Long {
 
-        val offset = size
+        lastOffset = size
 
         path.writeOnly { it.writeEntry(entry) }
 
-        mutableSize += headerSize + entry.size
+        size += headerSize + entry.size
 
-        return offset
+        return lastOffset
     }
 
     override fun appendAll(entries: Sequence<ByteArray>): Sequence<Long> {
@@ -35,24 +32,21 @@ private class BinaryLog(private val path: Path): Log<ByteArray> {
             return emptySequence()
         }
 
-        val offsets: MutableList<Long> = LinkedList()
-        offsets.add(size)
+        return path.writeOnly { stream ->
+            entries.map { entry ->
+                // 'size' is stale at this point, containing the lastOffset
+                lastOffset = size
 
-        path.writeOnly { stream ->
-            entries.forEach {
-                stream.writeEntry(it)
-                val last = offsets.last()
-                offsets.add(last + headerSize + it.size)
-            }
+                stream.writeEntry(entry)
+
+                size += headerSize + entry.size
+                return@map lastOffset
+            }.toList().asSequence()
         }
-
-        mutableSize = offsets.last()
-
-        return sequenceOf(0L) + offsets.subList(0, offsets.size - 1)
     }
 
-    override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R = when {
-        path.size() == 0L -> block(emptySequence())
+    override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R = when (size) {
+        0L -> block(emptySequence())
         else -> path.readOnly {
             if (offset > 0) {
                 it.seek(offset)
@@ -71,7 +65,11 @@ private class BinaryLog(private val path: Path): Log<ByteArray> {
         }
     }
 
-    override fun clear() { delete(path) }
+    override fun clear() {
+        delete(path)
+        size = 0L
+        lastOffset = 0L
+    }
 
     companion object {
 
@@ -133,9 +131,9 @@ private fun RandomAccessFile.readEntry(): ByteArray {
 private fun <T> Path.readOnly(block: (RandomAccessFile) -> T): T = RandomAccessFile(toFile(), "r")
         .use(block)
 
-private fun <T> Path.writeOnly(block: (OutputStream) -> T): T = BufferedOutputStream(newOutputStream(this,
-        CREATE, APPEND))
-        .use(block)
+private fun <T> Path.writeOnly(block: (OutputStream) -> T): T = BufferedOutputStream(
+    newOutputStream(this, CREATE, APPEND))
+    .use(block)
 
 private fun Path.size(): Long = when {
     isRegularFile(this) -> readOnly { it.length() }
@@ -144,6 +142,23 @@ private fun Path.size(): Long = when {
 
 class BinaryLogFactory: LogFactory<ByteArray> {
 
-    override fun create(logPath: Path): Log<ByteArray> = BinaryLog(logPath)
+    override fun create(logPath: Path): Log<ByteArray> {
+
+        val size = logPath.size()
+        val lastOffset = when (size) {
+            0L -> 0L
+            else -> logPath.readOnly {
+                // will process the entire file, unfortunately
+                EntryWithOffsetIterator(it).asSequence()
+                    .lastOrNull()
+                    ?.offset
+                    ?: 0L
+            }
+        }
+
+        return BinaryLog(logPath, lastOffset, size)
+    }
 
 }
+
+val binaryLogQ = named("binarylog")

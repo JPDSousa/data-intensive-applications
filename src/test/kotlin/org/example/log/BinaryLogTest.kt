@@ -1,34 +1,38 @@
 package org.example.log
 
 import kotlinx.serialization.ExperimentalSerializationApi
-import org.example.TestInstance
 import org.example.TestResources
-import org.example.encoder.Encoders
+import org.example.application
+import org.example.generator.ByteArrayGenerator
 import org.junit.jupiter.api.AfterAll
 import java.util.concurrent.atomic.AtomicLong
 
 internal class BinaryLogTest: LogTest<ByteArray> {
 
-    private val uniqueGenerator = AtomicLong()
+    private val valueIterator = byteArrayGenerator.generate().iterator()
 
-    override fun instances() = logs.binaryInstances()
+    override fun instances() = generator.generate()
 
-    override fun nextValue(): ByteArray = uniqueGenerator.getAndIncrement()
-            .toString()
-            .toByteArray()
+    override fun nextValue(): ByteArray = when {
+        valueIterator.hasNext() -> valueIterator.next()
+        else -> throw NoSuchElementException("No more values")
+    }
 
     companion object {
 
         @JvmStatic
-        private val resources = TestResources()
+        private val application = application()
 
         @JvmStatic
-        private val logs = Logs(resources, LogFactories(Encoders()))
+        private val byteArrayGenerator: ByteArrayGenerator = application.koin.get()
+
+        @JvmStatic
+        private val generator: BinaryLogs = application.koin.get(binaryLogQ)
 
         @JvmStatic
         @AfterAll
         fun closeResources() {
-            resources.close()
+            application.close()
         }
 
     }
@@ -38,11 +42,10 @@ internal class BinaryLogTest: LogTest<ByteArray> {
 internal class BinaryLogFactoryTest: LogFactoryTest<ByteArray> {
 
     @ExperimentalSerializationApi
-    override fun instances(): Sequence<TestInstance<LogFactory<ByteArray>>> = logFactories
-        .binaryInstances()
+    override fun instances() = logFactories.generate()
 
     override val resources: TestResources
-        get() = BinaryLogFactoryTest.resources
+        get() = application.koin.get()
 
     private val uniqueGenerator = AtomicLong()
 
@@ -53,15 +56,15 @@ internal class BinaryLogFactoryTest: LogFactoryTest<ByteArray> {
     companion object {
 
         @JvmStatic
-        private val resources = TestResources()
+        private val application = application()
 
         @JvmStatic
-        private val logFactories = LogFactories(Encoders())
+        private val logFactories: ByteArrayLogFactories = application.koin.get(binaryLogQ)
 
         @JvmStatic
         @AfterAll
         fun closeResources() {
-            resources.close()
+            application.close()
         }
     }
 }

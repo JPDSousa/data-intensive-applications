@@ -1,58 +1,65 @@
 package org.example.log
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.serializer
+import org.example.TestGenerator
 import org.example.TestInstance
 import org.example.encoder.Encoders
+import org.koin.dsl.module
 
-class LogFactories(private val encoders: Encoders) {
 
-    @ExperimentalSerializationApi
-    fun binaryInstances(): Sequence<TestInstance<LogFactory<ByteArray>>>
-            = binaryLogInstances() + binaryEncodedInstances()
+val logFactoriesModule = module {
 
-    fun binaryLogInstances(): Sequence<TestInstance<LogFactory<ByteArray>>> = sequenceOf(
-            TestInstance("Binary Log Factory") {
-                BinaryLogFactory()
-            })
-
-    @ExperimentalSerializationApi
-    fun binaryEncodedInstances(): Sequence<TestInstance<LogFactory<ByteArray>>> = sequence {
-
-        for (encoder in encoders.strings(serializer<ByteArray>())) {
-            yield(TestInstance("Log Encoder with string encoder") {
-                LogEncoderFactory(LineLogFactory(), encoder.instance())
-            })
-        }
-
-        for (encoder in encoders.binaries(serializer<ByteArray>())) {
-            yield(TestInstance("Log Encoder with binary encoder") {
-                LogEncoderFactory(BinaryLogFactory(), encoder.instance())
-            })
-        }
+    single<StringLogFactories>(lineLogQ) {
+        LineLogFactories()
     }
 
-    @ExperimentalSerializationApi
-    fun stringInstances(): Sequence<TestInstance<LogFactory<String>>> = lineLogInstances() + stringEncodedInstances()
+    single<StringLogFactories> {
+        get(lineLogQ)
+    }
 
-    fun lineLogInstances(): Sequence<TestInstance<LogFactory<String>>> = sequenceOf(TestInstance("String Log Factory") {
+    single<ByteArrayLogFactories>(binaryLogQ) { ByteArrayLogFactoriesimpl() }
+
+    single<ByteArrayLogFactories> {
+        get(binaryLogQ)
+    }
+}
+
+interface LogFactories<T>: TestGenerator<LogFactory<T>>
+interface StringLogFactories: LogFactories<String>
+interface ByteArrayLogFactories: LogFactories<ByteArray>
+
+private class LineLogFactories: StringLogFactories {
+
+    override fun generate() = sequenceOf(TestInstance("String Log Factory") {
         LineLogFactory()
     })
 
-    @ExperimentalSerializationApi
-    fun stringEncodedInstances(): Sequence<TestInstance<LogFactory<String>>> = sequence {
+}
 
-        for (encoder in encoders.strings(serializer<String>())) {
-            yield(TestInstance("Log Encoder with string encoder") {
-                LogEncoderFactory(LineLogFactory(), encoder.instance())
-            })
-        }
+private class ByteArrayLogFactoriesimpl: ByteArrayLogFactories {
 
-        for (encoder in encoders.stringToBinaries()) {
-            yield(TestInstance("Log encoder with binary encoder") {
-                LogEncoderFactory(BinaryLogFactory(), encoder.instance())
-            })
+    override fun generate() = sequenceOf(
+        TestInstance("Binary Log Factory") {
+            BinaryLogFactory()
+        })
+
+}
+
+class LogEncoderFactories<S, T>(
+    private val encoders: Encoders<S, T>,
+    private val factories: LogFactories<T>
+): LogFactories<S> {
+
+    override fun generate(): Sequence<TestInstance<LogFactory<S>>> = sequence {
+
+        for (factory in factories.generate()) {
+
+            for (encoder in encoders.generate()) {
+
+                yield(TestInstance("Log Encoder with string encoder") {
+                    LogEncoderFactory(factory.instance(), encoder.instance())
+                })
+            }
+
         }
     }
-
 }

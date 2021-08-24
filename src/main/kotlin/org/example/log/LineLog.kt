@@ -1,5 +1,6 @@
 package org.example.log
 
+import org.koin.core.qualifier.named
 import java.io.RandomAccessFile
 import java.lang.System.lineSeparator
 import java.nio.charset.Charset
@@ -14,22 +15,20 @@ import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
 // TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
-private class LineLog(private val path: Path, private val charset: Charset = UTF_8): Log<String> {
-
-    private var mutableSize = if (exists(path)) size(path) else 0L
-
-    override val size: Long
-        get() = mutableSize
+private class LineLog(private val path: Path,
+                      private val charset: Charset,
+                      override var size: Long,
+                      override var lastOffset: Long): Log<String> {
 
     override fun append(entry: String): Long {
 
-        val offset = size
+        lastOffset = size
 
         val line = entry.prependHeader()
         write(path, listOf(line), charset, CREATE, APPEND)
-        mutableSize += line.entrySize()
+        size += line.entrySize()
 
-        return offset
+        return lastOffset
     }
 
     override fun appendAll(entries: Sequence<String>): Sequence<Long> {
@@ -41,18 +40,15 @@ private class LineLog(private val path: Path, private val charset: Charset = UTF
         val offsets: MutableList<Long> = LinkedList()
         offsets.add(size)
 
-        val lines = entries.asStream()
-            .map { it.prependHeader() }
-            .peek {
+        entries.map { it.prependHeader() }
+            .onEach {
                 val last = offsets.last()
                 offsets.add(last + it.entrySize())
-            }.asSequence()
-            .asIterable()
-        write(path, lines, charset, CREATE, APPEND)
+            }.let { write(path, it.asIterable(), charset, CREATE, APPEND) }
 
-        mutableSize = offsets.last()
+        size = offsets.last()
 
-        return sequenceOf(0L) + offsets.subList(0, offsets.size - 1)
+        return offsets.subList(0, offsets.size - 1).asSequence()
     }
 
     override fun <T> useEntries(offset: Long, block: (Sequence<String>) -> T): T {
@@ -85,7 +81,11 @@ private class LineLog(private val path: Path, private val charset: Charset = UTF
                 .use { stream -> stream.asSequence().map { it.stripHeader() }.let(block) }
     }
 
-    override fun clear() { delete(path) }
+    override fun clear() {
+        delete(path)
+        size = 0L
+        lastOffset = 0L
+    }
 
     private fun String.byteLength() = toByteArray(charset).size
 
@@ -116,12 +116,13 @@ private class LineLog(private val path: Path, private val charset: Charset = UTF
 
     private fun EntryWithOffset<String>.stripHeader() = EntryWithOffset(offset, entry.stripHeader())
 
-    private fun Path.randomAccessReadOnly() : RandomAccessFile = RandomAccessFile(this.toFile(), "r")
-
     companion object {
         private val headerRegex = Regex("(\\d+)-(.*)")
     }
+
 }
+
+private fun Path.randomAccessReadOnly() : RandomAccessFile = RandomAccessFile(this.toFile(), "r")
 
 internal fun RandomAccessFile.generateStream() = generateSequence { readLine() }
         .asStream()
@@ -138,6 +139,23 @@ private fun RandomAccessFile.generateSequenceWithOffset() = generateSequence {
 
 class LineLogFactory: LogFactory<String> {
 
-    override fun create(logPath: Path): Log<String> = LineLog(logPath)
+    override fun create(logPath: Path): Log<String> {
 
+        val size = if (exists(logPath)) size(logPath) else 0L
+
+        val lastOffset = when (size) {
+            0L -> 0L
+            else -> logPath.randomAccessReadOnly()
+                .generateSequenceWithOffset()
+                .asSequence()
+                .last()
+                .offset
+        }
+
+        return LineLog(logPath, UTF_8, size, lastOffset)
+    }
+
+    override fun toString(): String = "String Log Factory"
 }
+
+val lineLogQ = named("lineLog")

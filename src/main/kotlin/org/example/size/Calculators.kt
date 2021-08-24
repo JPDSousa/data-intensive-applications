@@ -1,6 +1,13 @@
 package org.example.size
 
+import org.koin.dsl.module
 import java.nio.charset.Charset
+
+val calculatorsModule = module {
+    single { ByteArraySizeCalculator }
+    single { LongSizeCalculator }
+    single { StringSizeCalculator(get(), get<ByteArraySizeCalculator>()) }
+}
 
 object ByteArraySizeCalculator: SizeCalculator<ByteArray> {
 

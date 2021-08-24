@@ -17,7 +17,7 @@ interface KeyValueStore<K, V> {
     fun clear()
 }
 
-interface LogBasedKeyValueStore<K, V>: TombstoneKeyValueStore<K, V> {
+interface LogKeyValueStore<K, V>: TombstoneKeyValueStore<K, V> {
 
     fun append(key: K, value: V): Long
 
@@ -25,12 +25,18 @@ interface LogBasedKeyValueStore<K, V>: TombstoneKeyValueStore<K, V> {
 
     fun getWithOffset(key: K): ValueWithOffset<V>?
 
-    fun <R> useEntries(block: (Sequence<Map.Entry<K, V>>) -> R): R = log.useEntries(0) { block(it) }
+    fun <R> useEntries(offset: Long = 0L, block: (Sequence<KeyValueEntry<K, V>>) -> R): R = log.useEntriesWithOffset(offset) {
+        it.map { logEntry -> KeyValueEntry(logEntry.entry, logEntry.offset) }
+            .let(block)
+    }
 
     val log: Log<Map.Entry<K, V>>
 
     val size: Long
-    get() = log.size
+        get() = log.size
+
+    val lastOffset: Long
+        get() = log.lastOffset
 
 }
 
@@ -45,7 +51,7 @@ interface TombstoneKeyValueStore<K, V>: KeyValueStore<K, V> {
 
 data class ValueWithOffset<V>(val offset: Long, val value: V)
 
-interface LogBasedKeyValueStoreFactory<K, V> {
+interface LogKeyValueStoreFactory<K, V> {
 
-    fun createFromPair(log: Log<Map.Entry<K, V>>): LogBasedKeyValueStore<K, V>
+    fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V>
 }

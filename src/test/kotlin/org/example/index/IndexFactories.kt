@@ -1,66 +1,75 @@
 package org.example.index
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.KSerializer
+import org.example.TestGenerator
+import org.example.TestGeneratorAdapter
 import org.example.TestInstance
-import org.example.TestResources
-import org.example.encoder.Encoder
-import org.example.encoder.JsonStringEncoder
-import org.example.encoder.ProtobufBinaryEncoder
-import org.example.log.BinaryLogFactory
-import org.example.log.LineLogFactory
-import org.example.log.LogFactory
+import org.example.generator.CompositeGenerator
+import org.koin.dsl.module
 
-class IndexFactories(private val resources: TestResources,
-                     private val dispatcher: CoroutineDispatcher) {
-
-    @ExperimentalSerializationApi
-    fun <K> instances(serializer: KSerializer<IndexEntry<K>>): Sequence<TestInstance<IndexFactory<K>>> = sequence {
-
-        yield(TestInstance("HashIndexFactory") {
-            HashIndexFactory()
-        })
-
-        // TODO add other log factories
-        yield(TestInstance("Checkpointable index with binary log") {
-            checkpointableIndexFactory(
-                    HashIndexFactory(),
-                    BinaryLogFactory(),
-                    ProtobufBinaryEncoder(serializer)
+val indexFactoriesModule = module {
+    
+    single<StringIndexFactories> {
+        DelegateStringIndexFactories(
+            TestGeneratorAdapter(
+                CompositeGenerator(listOf(
+                    get<StringIndexFactories>(treeIndexQ),
+                    get<StringIndexFactories>(hashIndexQ)
+                ))
             )
-        })
-
-        yield(TestInstance("Checkpointable index with string log") {
-            checkpointableIndexFactory(
-                    HashIndexFactory(),
-                    LineLogFactory(),
-                    JsonStringEncoder(serializer))
-        })
+        )
+    }
+    
+    single<StringIndexFactories>(treeIndexQ) {
+        DelegateStringIndexFactories(TreeIndexFactories())
     }
 
-    @ExperimentalSerializationApi
-    fun <K: Comparable<K>> comparableInstances(
-            serializer: KSerializer<IndexEntry<K>>): Sequence<TestInstance<IndexFactory<K>>> = sequence {
-
-        yieldAll(instances(serializer))
-
-        yield(TestInstance("Tree index factory") {
-            TreeIndexFactory<K>()
-        })
+    single<StringIndexFactories>(hashIndexQ) {
+        DelegateStringIndexFactories(HashIndexFactories())
     }
 
-    private fun <K, E> checkpointableIndexFactory(indexFactory: IndexFactory<K>,
-                                                  logFactory: LogFactory<E>,
-                                                  encoder: Encoder<IndexEntry<K>, E>) = CheckpointableIndexFactory(
-        indexFactory,
-        resources.allocateTempDir("index-"),
-        IndexEntryLogFactory(
-            logFactory,
-            encoder
-        ),
-        10_000,
-        dispatcher
+    single<LongIndexFactories> {
+        DelegateLongIndexFactories(
+            TestGeneratorAdapter(
+                CompositeGenerator(listOf(
+                    get<LongIndexFactories>(hashIndexQ)
+                ))
+            )
+        )
+    }
+
+    single<LongIndexFactories>(hashIndexQ) {
+        DelegateLongIndexFactories(HashIndexFactories())
+    }
+}
+
+interface IndexFactories<K>: TestGenerator<IndexFactory<K>>
+
+interface ComparableIndexFactories<K: Comparable<K>>: IndexFactories<K>
+
+interface StringIndexFactories: ComparableIndexFactories<String>
+
+interface LongIndexFactories: IndexFactories<Long>
+
+private class DelegateStringIndexFactories(private val delegate: TestGenerator<IndexFactory<String>>)
+    : StringIndexFactories, TestGenerator<IndexFactory<String>> by delegate
+
+private class DelegateLongIndexFactories(private val delegate: TestGenerator<IndexFactory<Long>>)
+    : LongIndexFactories, TestGenerator<IndexFactory<Long>> by delegate
+
+private class HashIndexFactories<K>: IndexFactories<K> {
+
+    override fun generate(): Sequence<TestInstance<IndexFactory<K>>> = sequenceOf(
+        TestInstance<IndexFactory<K>>("HashIndexFactory") {
+            HashIndexFactory()
+        }
     )
+}
 
+private class TreeIndexFactories<K: Comparable<K>>: ComparableIndexFactories<K> {
+
+    override fun generate(): Sequence<TestInstance<IndexFactory<K>>> = sequenceOf(
+        TestInstance<IndexFactory<K>>("Tree index factory") {
+            TreeIndexFactory()
+        }
+    )
 }

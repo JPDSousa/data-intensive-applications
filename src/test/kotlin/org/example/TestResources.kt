@@ -15,7 +15,7 @@ class TestResources: Closeable {
     fun allocateTempDir(prefix: String): Path = createTempDirectory(prefix)
             .also { resources.push(it) }
 
-    fun allocateTempFile(prefix: String, suffix: String) = createTempFile(prefix, suffix)
+    fun allocateTempFile(prefix: String, suffix: String): Path = createTempFile(prefix, suffix)
             .let { resources.push(it) }
 
     override fun close() {

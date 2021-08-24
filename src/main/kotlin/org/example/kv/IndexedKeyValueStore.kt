@@ -1,15 +1,16 @@
 package org.example.kv
 
+import org.example.generator.Generator
+import org.example.generator.StringGenerator
+import org.example.index.CheckpointableIndexFactory
 import org.example.index.Index
 import org.example.index.IndexEntry
-import org.example.index.IndexFactory
 import org.example.log.Log
-import java.util.concurrent.atomic.AtomicLong
 
 private class IndexedKeyValueStore<K, V>(
         private val index: Index<K>,
         private val tombstone: V,
-        private val logKV: LogBasedKeyValueStore<K, V>): LogBasedKeyValueStore<K, V> by logKV {
+        private val logKV: LogKeyValueStore<K, V>): LogKeyValueStore<K, V> by logKV {
 
     override fun put(key: K, value: V) {
 
@@ -78,16 +79,45 @@ private class IndexedKeyValueStore<K, V>(
     }
 }
 
-class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: IndexFactory<K>,
+class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: CheckpointableIndexFactory<K>,
                                         private val tombstone: V,
-                                        private val innerKVSFactory: LogBasedKeyValueStoreFactory<K, V>,
-                                        private val nameGenerator: AtomicLong = AtomicLong(0))
-    : LogBasedKeyValueStoreFactory<K, V> {
+                                        private val innerKVSFactory: LogKeyValueStoreFactory<K, V>,
+                                        nameGenerator: Generator<String>)
+    : LogKeyValueStoreFactory<K, V> {
 
-    // TODO this is not accounting for recovery scenarios
-    override fun createFromPair(log: Log<Map.Entry<K, V>>): LogBasedKeyValueStore<K, V> = IndexedKeyValueStore(
-        indexFactory.create("Index${nameGenerator.getAndIncrement()}"),
-        tombstone,
-        innerKVSFactory.createFromPair(log)
-    )
+    private val nameIterator = nameGenerator.generate().iterator()
+
+    private fun generateName() = when {
+        nameIterator.hasNext() -> nameIterator.next()
+        else -> throw NoSuchElementException("Name generator cannot generate more names")
+    }
+
+    override fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V> {
+
+
+        val index = indexFactory.create("Index${generateName()}")
+        val logKV = innerKVSFactory.createFromPair(log)
+
+        val indexLastOffset = index.lastOffset
+        val kvLastOffset = logKV.lastOffset
+
+        if (indexLastOffset > kvLastOffset) {
+            // TODO is there a more efficient approach than rewritting the entire index
+            index.clear()
+            logKV.useEntries {
+                it.forEach { entry -> index.putOffset(entry.key, entry.offset) }
+            }
+        } else if (indexLastOffset < kvLastOffset) {
+            // seek the last index offset in the log and update the index from there
+            logKV.useEntries(indexLastOffset) {
+                it.forEach { entry -> index.putOffset(entry.key, entry.offset) }
+            }
+        }
+
+        return IndexedKeyValueStore(
+            index,
+            tombstone,
+            logKV
+        )
+    }
 }

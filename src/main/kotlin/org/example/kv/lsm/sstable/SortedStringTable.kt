@@ -1,17 +1,17 @@
 package org.example.kv.lsm.sstable
 
-import org.example.kv.LogBasedKeyValueStore
-import org.example.kv.LogBasedKeyValueStoreFactory
-import org.example.log.LogFactory
+import org.example.kv.LogKeyValueStore
+import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.lsm.OpenSegment
 import org.example.kv.lsm.Segment
 import org.example.kv.lsm.SegmentDirectory
 import org.example.kv.lsm.SegmentManager
+import org.example.log.LogFactory
 import org.example.size.SizeCalculator
 import java.util.*
 
 private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: SortedMap<K, V>,
-                                                        private val dump: LogBasedKeyValueStore<K, V>,
+                                                        private val dump: LogKeyValueStore<K, V>,
                                                         private val keySize: SizeCalculator<K>,
                                                         private val valueSize: SizeCalculator<V>,
                                                         private val tombstone: V,
@@ -78,7 +78,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
 
 class SSTableSegmentManager<K: Comparable<K>, V>(private val segmentDirectory: SegmentDirectory,
                                                  private val logFactory: LogFactory<Map.Entry<K, V>>,
-                                                 private val keyValueStoreFactory: LogBasedKeyValueStoreFactory<K, V>,
+                                                 private val keyValueStoreFactory: LogKeyValueStoreFactory<K, V>,
                                                  mergeStrategy: SSTableMergeStrategy<K, V>,
                                                  private val segmentThreshold: Long,
                                                  private val keySize: SizeCalculator<K>,

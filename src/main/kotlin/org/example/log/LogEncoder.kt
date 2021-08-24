@@ -1,6 +1,7 @@
 package org.example.log
 
 import org.example.encoder.Encoder
+import org.koin.core.qualifier.named
 import java.nio.file.Path
 
 class LogEncoder<S, T>(private val log: Log<T>,
@@ -23,6 +24,9 @@ class LogEncoder<S, T>(private val log: Log<T>,
     get() = log.size
 
     override fun clear() = log.clear()
+
+    override val lastOffset: Long
+        get() = log.lastOffset
 }
 
 class LogEncoderFactory<S, T>(private val innerFactory: LogFactory<T>,
@@ -30,3 +34,5 @@ class LogEncoderFactory<S, T>(private val innerFactory: LogFactory<T>,
 
     override fun create(logPath: Path): Log<S> = LogEncoder(innerFactory.create(logPath), encoder)
 }
+
+val logEncoderQ = named("logEncoder")
