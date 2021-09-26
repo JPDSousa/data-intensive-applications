@@ -2,12 +2,7 @@ package org.example.kv
 
 import org.example.TestGenerator
 import org.example.TestInstance
-import org.example.kv.lsm.LSMKeyValueStoreFactories
-import org.example.kv.lsm.LongByteArrayLSMKeyValueStoreFactories
-import org.example.kv.lsm.StringStringLSMKeyValueStoreFactories
-import org.example.kv.lsm.sequential.LongByteArraySequentialSegmentManagers
-import org.example.kv.lsm.sequential.SequentialSegmentManagers
-import org.example.kv.lsm.sequential.StringStringSequentialSegmentManagers
+import org.example.kv.lsm.*
 import org.koin.dsl.module
 
 val keyValueStoresModule = module {
@@ -15,7 +10,7 @@ val keyValueStoresModule = module {
     single<ByteArrayKeyValueStores> {
         ByteArrayDelegate(
             GenericKeyValueStores(
-                get<LongByteArraySequentialSegmentManagers>(),
+                get<LongByteArraySegmentManagers>(),
                 get<LongByteArrayLSMKeyValueStoreFactories>()
             )
         )
@@ -24,7 +19,7 @@ val keyValueStoresModule = module {
     single<StringStringKeyValueStores> {
         StringDelegate(
             GenericKeyValueStores(
-                get<StringStringSequentialSegmentManagers>(),
+                get<StringStringSegmentManagers>(),
                 get<StringStringLSMKeyValueStoreFactories>()
             )
         )
@@ -41,7 +36,7 @@ private class ByteArrayDelegate(private val delegate: KeyValueStores<Long, ByteA
 private class StringDelegate(private val delegate: KeyValueStores<String, String>):
     StringStringKeyValueStores, KeyValueStores<String, String> by delegate
 
-private class GenericKeyValueStores<K, V>(private val segmentManagers: SequentialSegmentManagers<K, V>,
+private class GenericKeyValueStores<K, V>(private val segmentManagers: SegmentManagers<K, V>,
                                           private val factories: LSMKeyValueStoreFactories<K, V>
 ): KeyValueStores<K, V> {
 
