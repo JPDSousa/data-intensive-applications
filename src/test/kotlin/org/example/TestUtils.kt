@@ -12,6 +12,8 @@ import org.example.kv.keyValueStoresModule
 import org.example.kv.logKeyValueStoreFactoryModule
 import org.example.kv.lsm.lsmKeyValueStoreFactoriesModule
 import org.example.kv.lsm.sequential.segmentManagersModule
+import org.example.kv.lsm.sequentialSegmentManagersModule
+import org.example.kv.lsm.sstable.sstableSegmentManagersModule
 import org.example.log.logFactoriesModule
 import org.example.log.logsModule
 import org.example.size.calculatorsModule
@@ -51,7 +53,9 @@ fun application() = koinApplication {
         indexFactoriesModule,
         checkpointableIndexModule,
         checkpointableIndexFactoriesModule,
+        sequentialSegmentManagersModule,
         segmentManagersModule,
+        sstableSegmentManagersModule,
         keyValueStoresModule,
         logKeyValueStoreFactoryModule,
         lsmKeyValueStoreFactoriesModule

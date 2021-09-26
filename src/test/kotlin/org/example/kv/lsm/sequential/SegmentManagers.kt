@@ -1,10 +1,8 @@
 package org.example.kv.lsm.sequential
 
-import org.example.TestGeneratorAdapter
 import org.example.TestInstance
 import org.example.TestResources
 import org.example.encoder.*
-import org.example.generator.CompositeGenerator
 import org.example.kv.*
 import org.example.kv.lsm.*
 import org.example.log.*
@@ -12,63 +10,53 @@ import org.example.size.ByteArraySizeCalculator
 import org.example.size.LongSizeCalculator
 import org.example.size.SizeCalculator
 import org.example.size.StringSizeCalculator
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
+val sequentialQ = named("sequentialSegmentManager")
 
 val segmentManagersModule = module {
 
-    single<StringStringSegmentManagers> {
-        DelegateStringString(
-            TestGeneratorAdapter(
-                CompositeGenerator(
-                    listOf(
-                        Generic(
-                            get<StringLogFactories>(),
-                            get<StringStringMapEntry2StringEncoders>(),
-                            get<StringSizeCalculator>(),
-                            get<StringSizeCalculator>(),
-                            get<StringStringLogKeyValueStoreFactories>(),
-                            get()
-                        ),
-                        Generic(
-                            get<ByteArrayLogFactories>(),
-                            get<StringStringMapEntry2ByteArrayEncoders>(),
-                            get<StringSizeCalculator>(),
-                            get<StringSizeCalculator>(),
-                            get<StringStringLogKeyValueStoreFactories>(),
-                            get()
-                        ),
-                    )
-                )
-            )
-        )
+    single(sequentialQ) {
+        stringStringSegmentManager(listOf(
+            Generic(
+                get<StringLogFactories>(),
+                get<StringStringMapEntry2StringEncoders>(),
+                get<StringSizeCalculator>(),
+                get<StringSizeCalculator>(),
+                get<StringStringLogKeyValueStoreFactories>(),
+                get()
+            ),
+            Generic(
+                get<ByteArrayLogFactories>(),
+                get<StringStringMapEntry2ByteArrayEncoders>(),
+                get<StringSizeCalculator>(),
+                get<StringSizeCalculator>(),
+                get<StringStringLogKeyValueStoreFactories>(),
+                get()
+            ),
+        ))
     }
 
-    single<LongByteArraySegmentManagers> {
-        DelegateLongByteArray(
-            TestGeneratorAdapter(
-                CompositeGenerator(
-                    listOf(
-                        Generic(
-                            get<StringLogFactories>(),
-                            get<LongByteArrayMapEntry2StringEncoders>(),
-                            get<LongSizeCalculator>(),
-                            get<ByteArraySizeCalculator>(),
-                            get<LongByteArrayLogKeyValueStoreFactories>(),
-                            get()
-                        ),
-                        Generic(
-                            get<ByteArrayLogFactories>(),
-                            get<LongByteArrayMapEntry2ByteArrayEncoders>(),
-                            get<LongSizeCalculator>(),
-                            get<ByteArraySizeCalculator>(),
-                            get<LongByteArrayLogKeyValueStoreFactories>(),
-                            get()
-                        ),
-                    )
-                )
-            )
-        )
+    single(sequentialQ) {
+        longByteArraySegmentManager(listOf(
+            Generic(
+                get<StringLogFactories>(),
+                get<LongByteArrayMapEntry2StringEncoders>(),
+                get<LongSizeCalculator>(),
+                get<ByteArraySizeCalculator>(),
+                get<LongByteArrayLogKeyValueStoreFactories>(),
+                get()
+            ),
+            Generic(
+                get<ByteArrayLogFactories>(),
+                get<LongByteArrayMapEntry2ByteArrayEncoders>(),
+                get<LongSizeCalculator>(),
+                get<ByteArraySizeCalculator>(),
+                get<LongByteArrayLogKeyValueStoreFactories>(),
+                get()
+            ),
+        ))
     }
 }
 
