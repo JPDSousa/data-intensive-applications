@@ -26,6 +26,6 @@ class SequentialSegmentManager<K, V>(private val segmentDirectory: SegmentDirect
     override fun createOpenSegment(): OpenSegment<K, V> = segmentDirectory
         .createSegmentFile()
         .let { logFactory.create(it) }
-        .let { keyValueStoreFactory.createFromPair(it) }
+        .let { keyValueStoreFactory.createFromLog(it) }
         .let { SequentialOpenSegment(it) }
 }

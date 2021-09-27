@@ -53,5 +53,5 @@ data class ValueWithOffset<V>(val offset: Long, val value: V)
 
 interface LogKeyValueStoreFactory<K, V> {
 
-    fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V>
+    fun createFromLog(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V>
 }

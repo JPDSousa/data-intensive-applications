@@ -9,7 +9,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 
 
-abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
+internal abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
 
     companion object {
 

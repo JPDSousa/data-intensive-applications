@@ -1,7 +1,6 @@
 package org.example.kv
 
 import org.example.generator.Generator
-import org.example.generator.StringGenerator
 import org.example.index.CheckpointableIndexFactory
 import org.example.index.Index
 import org.example.index.IndexEntry
@@ -92,11 +91,12 @@ class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: Checkpointable
         else -> throw NoSuchElementException("Name generator cannot generate more names")
     }
 
-    override fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V> {
+    override fun createFromLog(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V> {
 
 
         val index = indexFactory.create("Index${generateName()}")
-        val logKV = innerKVSFactory.createFromPair(log)
+        val logKV = innerKVSFactory.createFromLog(log)
+        
 
         val indexLastOffset = index.lastOffset
         val kvLastOffset = logKV.lastOffset

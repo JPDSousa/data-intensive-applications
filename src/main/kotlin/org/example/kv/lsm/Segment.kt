@@ -40,7 +40,7 @@ abstract class SegmentManager<K, V>(
     // TODO this is not accounting for extra files required by the segment
     internal fun loadClosedSegments(): ClosedSegments<K, V> = directory.loadSegmentFiles()
         .map { logFactory.create(it) }
-        .map { logKVFactory.createFromPair(it) }
+        .map { logKVFactory.createFromLog(it) }
         // TODO load segmentThreshold from file
         .map { Segment(it, segmentThreshold) }
         .toCollection(LinkedList())
@@ -58,7 +58,7 @@ class SegmentFactory<K, V>(private val directory: SegmentDirectory,
     fun createSegment(): Segment<K, V> = directory
         .createSegmentFile()
         .let { logFactory.create(it) }
-        .let { logKVFactory.createFromPair(it) }
+        .let { logKVFactory.createFromLog(it) }
         .let { Segment(it, segmentThreshold) }
 
 }
