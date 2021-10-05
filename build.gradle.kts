@@ -1,33 +1,44 @@
+import org.gradle.api.file.DuplicatesStrategy.*
+
 plugins {
-    kotlin("jvm") version "1.5.20"
-    kotlin("plugin.serialization") version "1.5.20"
-    kotlin("kapt") version "1.5.20"
+    val kotlinVersion = "1.5.31"
+    kotlin("jvm") version kotlinVersion
+    kotlin("plugin.serialization") version kotlinVersion
+    kotlin("kapt") version kotlinVersion
 }
 
 repositories {
     mavenCentral()
-    //google()
 }
 
 dependencies {
     implementation("commons-io:commons-io:2.8.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.0-M1")
+
+    val coroutinesVersion = "1.5.2"
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     implementation("io.github.microutils:kotlin-logging:2.0.3")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.0.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.0.0")
+    val kotlinxSerializationVersion = "1.3.0"
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:$kotlinxSerializationVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:$kotlinxSerializationVersion")
 
-    val koin_version = "3.1.2"
-    implementation("io.insert-koin:koin-core:$koin_version")
-    testImplementation("io.insert-koin:koin-core:$koin_version")
+    val koinVersion = "3.1.2"
+    implementation("io.insert-koin:koin-core:$koinVersion")
+    testImplementation("io.insert-koin:koin-core:$koinVersion")
 
     // JUnit dependencies
-    testImplementation(platform("org.junit:junit-bom:5.7.1"))
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
-    testImplementation("org.apache.commons:commons-math3:3.4")
+    val junitVersion = "5.7.1"
+    testImplementation(platform("org.junit:junit-bom:$junitVersion"))
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
+    testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    testImplementation("org.apache.commons:commons-math3:3.4")
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_16
+    targetCompatibility = JavaVersion.VERSION_16
 }
 
 tasks {
@@ -37,9 +48,10 @@ tasks {
     compileTestKotlin {
         kotlinOptions.jvmTarget = "16"
     }
-}
-
-
-tasks.named<Test>("test") {
-    useJUnitPlatform()
+    jar {
+        duplicatesStrategy = WARN
+    }
+    test {
+        useJUnitPlatform()
+    }
 }

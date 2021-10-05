@@ -10,7 +10,6 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.decodeStructure
 import kotlinx.serialization.encoding.encodeStructure
-import kotlinx.serialization.serializer
 import java.time.Instant
 
 fun possiblyArrayEquals(val1: Any?, val2: Any?): Boolean {
@@ -35,9 +34,9 @@ class InstantSerializer : KSerializer<Instant> {
 data class DataEntry<K, V>(override val key: K, override val value: V) : Map.Entry<K, V>
 
 class DataEntrySerializer<K, V>(private val keySerializer: KSerializer<K>,
-                                private val valueSerializer: KSerializer<V>): KSerializer<Map.Entry<K, V>> {
+                                private val valueSerializer: KSerializer<V>): KSerializer<DataEntry<K, V>> {
 
-    override fun deserialize(decoder: Decoder): Map.Entry<K, V> = decoder.decodeStructure(descriptor) {
+    override fun deserialize(decoder: Decoder): DataEntry<K, V> = decoder.decodeStructure(descriptor) {
 
         val key = keySerializer.deserialize(decoder)
         val value = valueSerializer.deserialize(decoder)
@@ -45,7 +44,7 @@ class DataEntrySerializer<K, V>(private val keySerializer: KSerializer<K>,
         DataEntry(key, value)
     }
 
-    override fun serialize(encoder: Encoder, value: Map.Entry<K, V>) {
+    override fun serialize(encoder: Encoder, value: DataEntry<K, V>) {
         encoder.encodeStructure(descriptor) {
             keySerializer.serialize(encoder, value.key)
             valueSerializer.serialize(encoder, value.value)
