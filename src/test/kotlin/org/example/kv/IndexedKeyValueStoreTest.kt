@@ -7,6 +7,7 @@ import org.example.generator.LongGenerator
 import org.example.generator.StringGenerator
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.koin.core.KoinApplication
 
 
 internal abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
@@ -14,7 +15,7 @@ internal abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTes
     companion object {
 
         @JvmStatic
-        internal var application = application()
+        internal lateinit var application: KoinApplication
 
         @JvmStatic
         @BeforeAll

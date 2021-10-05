@@ -89,6 +89,6 @@ class SSTableSegmentManager<K: Comparable<K>, V>(private val segmentDirectory: S
     override fun createOpenSegment(): OpenSegment<K, V> = segmentDirectory
         .createSegmentFile()
         .let { logFactory.create(it) }
-        .let { keyValueStoreFactory.createFromLog(it) }
+        .let { keyValueStoreFactory.createFromPair(it) }
         .let { SortedMapStringTable(TreeMap(), it, keySize, valueSize, tombstone, segmentThreshold) }
 }

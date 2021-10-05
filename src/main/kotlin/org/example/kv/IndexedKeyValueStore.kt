@@ -91,11 +91,11 @@ class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: Checkpointable
         else -> throw NoSuchElementException("Name generator cannot generate more names")
     }
 
-    override fun createFromLog(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V> {
+    override fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V> {
 
 
         val index = indexFactory.create("Index${generateName()}")
-        val logKV = innerKVSFactory.createFromLog(log)
+        val logKV = innerKVSFactory.createFromPair(log)
         
 
         val indexLastOffset = index.lastOffset

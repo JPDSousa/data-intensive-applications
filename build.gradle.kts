@@ -4,7 +4,6 @@ plugins {
     val kotlinVersion = "1.5.31"
     kotlin("jvm") version kotlinVersion
     kotlin("plugin.serialization") version kotlinVersion
-    kotlin("kapt") version kotlinVersion
 }
 
 repositories {

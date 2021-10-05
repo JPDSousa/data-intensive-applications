@@ -1,21 +1,25 @@
 package org.example.kv
 
 import org.example.DataEntry
+import org.example.TestInstance
 import org.example.TestResources
 import org.example.application
 import org.example.generator.StringGenerator
 import org.example.log.LogFactory
+import org.example.log.StringStringMapEntryLogFactories
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.koin.core.KoinApplication
 
 internal abstract class AbstractIndexedKeyValueStoreFactoryTest<K, V>: LogKeyValueStoreFactoryTest<K, V> {
 
-    override val resources = application.koin.get<TestResources>()
+    override val resources
+        get() = application.koin.get<TestResources>()
 
     companion object {
 
         @JvmStatic
-        internal var application = application()
+        internal lateinit var application: KoinApplication
 
         @JvmStatic
         @BeforeAll
@@ -41,16 +45,18 @@ internal class StringIndexedKeyValueStoreFactoryTest: AbstractIndexedKeyValueSto
     // TODO check for hasNext
     override fun nextEntry() = DataEntry(valueGenerator.next(), valueGenerator.next())
 
-    override val logFactory: LogFactory<Map.Entry<String, String>>
-        get() = TODO("Not yet implemented")
+    override fun logFactories(): Sequence<TestInstance<LogFactory<Map.Entry<String, String>>>> = logFactoriesGenerator
+        .generate()
 
     companion object {
+
+        private val logFactoriesGenerator: StringStringMapEntryLogFactories = application.koin.get()
 
         @JvmStatic
         private val factories: StringStringLogKeyValueStoreFactories = application.koin.get()
 
         @JvmStatic
-        private val stringGenerator: StringGenerator = AbstractIndexedKeyValueStoreTest.application.koin.get()
+        private val stringGenerator: StringGenerator = application.koin.get()
 
     }
 }

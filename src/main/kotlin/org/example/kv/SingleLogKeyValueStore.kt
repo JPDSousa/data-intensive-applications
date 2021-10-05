@@ -52,6 +52,6 @@ private class SingleLogKeyValueStore<K, V>(override val log: Log<Map.Entry<K, V>
 
 class SingleLogKeyValueStoreFactory<K, V>(private val tombstone: V): LogKeyValueStoreFactory<K, V> {
 
-    override fun createFromLog(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V>
+    override fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V>
             = SingleLogKeyValueStore(log, tombstone)
 }

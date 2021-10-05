@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.TestInfo
+import org.koin.core.KoinApplication
 
 internal abstract class CheckpointableIndexTest<K>: IndexTest<K> {
 
@@ -39,7 +40,7 @@ internal abstract class CheckpointableIndexTest<K>: IndexTest<K> {
     companion object {
 
         @JvmStatic
-        internal var application = application()
+        internal lateinit var application: KoinApplication
 
         @JvmStatic
         @BeforeAll

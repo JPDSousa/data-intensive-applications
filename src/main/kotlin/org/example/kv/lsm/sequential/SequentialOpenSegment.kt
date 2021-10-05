@@ -7,7 +7,7 @@ import org.example.kv.lsm.*
 import org.example.log.LogFactory
 
 private class SequentialOpenSegment<K, V>(private val keyValueStore: LogKeyValueStore<K, V>,
-                                          private val segmentThreshold: Long = 1024 * 1024):
+                                          private val segmentThreshold: Long = 1024L * 1024L):
     OpenSegment<K, V>, TombstoneKeyValueStore<K, V> by keyValueStore {
 
     override fun closeSegment(): Segment<K, V> = Segment(keyValueStore, segmentThreshold)
@@ -26,6 +26,6 @@ class SequentialSegmentManager<K, V>(private val segmentDirectory: SegmentDirect
     override fun createOpenSegment(): OpenSegment<K, V> = segmentDirectory
         .createSegmentFile()
         .let { logFactory.create(it) }
-        .let { keyValueStoreFactory.createFromLog(it) }
+        .let { keyValueStoreFactory.createFromPair(it) }
         .let { SequentialOpenSegment(it) }
 }

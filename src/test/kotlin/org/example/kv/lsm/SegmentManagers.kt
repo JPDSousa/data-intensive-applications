@@ -18,7 +18,7 @@ private class DelegateStringString(private val delegate: TestGenerator<SegmentMa
 private class DelegateLongByteArray(private val delegate: TestGenerator<SegmentManager<Long, ByteArray>>)
     : LongByteArraySegmentManagers, SegmentManagers<Long, ByteArray>, TestGenerator<SegmentManager<Long, ByteArray>> by delegate
 
-private fun stringStringSegmentManager(managers: Iterable<TestGenerator<SegmentManager<String, String>>>)
+fun stringStringSegmentManager(managers: Iterable<TestGenerator<SegmentManager<String, String>>>)
         : StringStringSegmentManagers = DelegateStringString(
     TestGeneratorAdapter(
         CompositeGenerator(
@@ -27,7 +27,7 @@ private fun stringStringSegmentManager(managers: Iterable<TestGenerator<SegmentM
     )
 )
 
-private fun longByteArraySegmentManager(managers: Iterable<TestGenerator<SegmentManager<Long, ByteArray>>>)
+fun longByteArraySegmentManager(managers: Iterable<TestGenerator<SegmentManager<Long, ByteArray>>>)
         : LongByteArraySegmentManagers = DelegateLongByteArray(
     TestGeneratorAdapter(
         CompositeGenerator(
