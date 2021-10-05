@@ -53,7 +53,7 @@ class LogGenerator<T>(
             for (size in testableSizes) {
                 yield(TestInstance("Log with initial size $size ~ ${it.name}") {
                     // TODO candidate for function extraction
-                    it.instance().create(resources.allocateTempFile("log-", ".log"))
+                    it.instance().create(resources.allocateTempLogFile())
                         .also { log ->
                             valueGenerator.generate()
                                 .take(size)

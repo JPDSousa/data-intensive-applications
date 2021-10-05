@@ -25,6 +25,8 @@ interface LogKeyValueStore<K, V>: TombstoneKeyValueStore<K, V> {
 
     fun getWithOffset(key: K): ValueWithOffset<V>?
 
+    fun loadToMemory(): Map<K, V> = useEntries { entries -> entries.toMap() }
+
     fun <R> useEntries(offset: Long = 0L, block: (Sequence<KeyValueEntry<K, V>>) -> R): R = log.useEntriesWithOffset(offset) {
         it.map { logEntry -> KeyValueEntry(logEntry.entry, logEntry.offset) }
             .let(block)

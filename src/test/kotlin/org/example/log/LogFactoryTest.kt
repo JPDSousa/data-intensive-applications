@@ -16,7 +16,7 @@ interface LogFactoryTest<T> {
     fun nextValue(): T
 
     @TestFactory fun `create should load file content`(info: TestInfo) = instances().test(info) { logFactory ->
-        val path = resources.allocateTempFile("log-", ".log")
+        val path = resources.allocateTempLogFile()
         val expectedValues = (1..100).map { nextValue() }
         val log = logFactory.create(path)
         log.appendAll(expectedValues.asSequence())
