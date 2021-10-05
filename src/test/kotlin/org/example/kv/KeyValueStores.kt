@@ -57,4 +57,4 @@ private class GenericKeyValueStores<K, V>(private val segmentManagers: SegmentMa
 }
 
 
-const val segmentThreshold: Long = 1024 * 1024
+const val segmentThreshold: Long = 1024L * 1024L
