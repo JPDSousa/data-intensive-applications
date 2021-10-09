@@ -42,9 +42,9 @@ private class GenericKeyValueStores<K, V>(private val segmentManagers: SegmentMa
 
     override fun generate(): Sequence<TestInstance<KeyValueStore<K, V>>> = sequence {
 
-        for (factory in factories.generate()) {
+        for (factory in factories) {
 
-            for (segmentManager in segmentManagers.generate()) {
+            for (segmentManager in segmentManagers) {
 
                 val instanceName = "LSM Key Value Store created from ${factory.name} using Segment " +
                         "Manager ${segmentManager.name}"

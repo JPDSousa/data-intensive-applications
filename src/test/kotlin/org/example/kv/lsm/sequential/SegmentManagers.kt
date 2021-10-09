@@ -71,11 +71,11 @@ private class Generic<K, V, E>(
 
     override fun generate(): Sequence<TestInstance<SequentialSegmentManager<K, V>>> = sequence {
 
-        for (logFactory in logFactories.generate()) {
+        for (logFactory in logFactories) {
 
-            for (logEncoder in logEncoders.generate()) {
+            for (logEncoder in logEncoders) {
 
-                for (segmentKVFactory in segmentKVFactories.generate()) {
+                for (segmentKVFactory in segmentKVFactories) {
 
                     yield(TestInstance("LSM Segment Manager ~ ${logEncoder.name} ~ ${segmentKVFactory.name} " +
                             "~ ${logFactory.name}") {

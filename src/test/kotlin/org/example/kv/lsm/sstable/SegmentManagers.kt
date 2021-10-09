@@ -78,11 +78,11 @@ private class Generic<K: Comparable<K>, V, E>(
 
     override fun generate(): Sequence<TestInstance<SegmentManager<K, V>>> = sequence {
 
-        for (logFactory in logFactories.generate()) {
+        for (logFactory in logFactories) {
 
-            for (logEncoder in logEncoders.generate()) {
+            for (logEncoder in logEncoders) {
 
-                for (segmentKVFactory in segmentKVFactories.generate()) {
+                for (segmentKVFactory in segmentKVFactories) {
 
                     yield(TestInstance("SSTable SegmentManager") {
 

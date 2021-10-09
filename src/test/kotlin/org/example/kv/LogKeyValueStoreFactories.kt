@@ -63,9 +63,9 @@ private class IndexedLogKeyValueStoreFactories<K, V>(private val tombstone: V,
 
     override fun generate(): Sequence<TestInstance<LogKeyValueStoreFactory<K, V>>> = sequence {
 
-        for (indexFactory in indexFactories.generate()) {
+        for (indexFactory in indexFactories) {
 
-            for (localKVSFactory in localKVSFactories.generate()) {
+            for (localKVSFactory in localKVSFactories) {
 
                 yield(TestInstance("${IndexedKeyValueStoreFactory::class.simpleName} with ${indexFactory.name}, " +
                         "Tombstone '$tombstone', ${localKVSFactory.name} and $stringGenerator") {

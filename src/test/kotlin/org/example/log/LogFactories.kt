@@ -65,9 +65,9 @@ class LogEncoderFactories<S, T>(
 
     override fun generate(): Sequence<TestInstance<LogFactory<S>>> = sequence {
 
-        for (factory in factories.generate()) {
+        for (factory in factories) {
 
-            for (encoder in encoders.generate()) {
+            for (encoder in encoders) {
 
                 yield(TestInstance("Log Encoder with string encoder") {
                     LogEncoderFactory(factory.instance(), encoder.instance())

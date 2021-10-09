@@ -122,13 +122,13 @@ private class GenericCheckpointableIndexFactories<K>(private val resources: Test
 
         for (config in configs) {
 
-            for (factory in config.factories.generate()) {
+            for (factory in config.factories) {
 
-                for (instantEncoder in config.instantEncoders.generate()) {
+                for (instantEncoder in config.instantEncoders) {
 
-                    for (entryLogFactory in config.entryLogFactory.generate()) {
+                    for (entryLogFactory in config.entryLogFactory) {
 
-                        for (indexFactory in config.indexFactories.generate()) {
+                        for (indexFactory in config.indexFactories) {
 
                             yield(TestInstance("Checkpointable String Index ~ ${factory.name}") {
 
