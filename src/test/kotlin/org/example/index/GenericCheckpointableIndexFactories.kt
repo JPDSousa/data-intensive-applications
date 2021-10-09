@@ -130,7 +130,7 @@ private class GenericCheckpointableIndexFactories<K>(private val resources: Test
 
                         for (indexFactory in config.indexFactories) {
 
-                            yield(TestInstance("Checkpointable String Index ~ ${factory.name}") {
+                            yield(TestInstance("Checkpointable String Index ~ $factory") {
 
                                 createCheckpointableIndex(
                                     createCheckpointStoreFactory(

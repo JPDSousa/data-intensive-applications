@@ -77,8 +77,7 @@ private class Generic<K, V, E>(
 
                 for (segmentKVFactory in segmentKVFactories) {
 
-                    yield(TestInstance("LSM Segment Manager ~ ${logEncoder.name} ~ ${segmentKVFactory.name} " +
-                            "~ ${logFactory.name}") {
+                    yield(TestInstance("LSM Segment Manager ~ $logEncoder ~ $segmentKVFactory ~ $logFactory") {
 
                         sequentialSegmentManager(logFactory, logEncoder, segmentKVFactory)
                     })

@@ -67,8 +67,8 @@ private class IndexedLogKeyValueStoreFactories<K, V>(private val tombstone: V,
 
             for (localKVSFactory in localKVSFactories) {
 
-                yield(TestInstance("${IndexedKeyValueStoreFactory::class.simpleName} with ${indexFactory.name}, " +
-                        "Tombstone '$tombstone', ${localKVSFactory.name} and $stringGenerator") {
+                yield(TestInstance("${IndexedKeyValueStoreFactory::class.simpleName} with $indexFactory, " +
+                        "Tombstone '$tombstone', $localKVSFactory and $stringGenerator") {
                     IndexedKeyValueStoreFactory(
                         indexFactory.instance(),
                         tombstone,

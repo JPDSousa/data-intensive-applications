@@ -22,7 +22,7 @@ interface LogKeyValueStoreFactoryTest<K, V> {
 
     @TestFactory fun `create should load file content`(info: TestInfo) = instances().flatMap { factory -> sequence {
         for (logFactory in logFactories()) {
-            yield(TestInstance("${factory.name} ~ ${logFactory.name}") {
+            yield(TestInstance("$factory ~ $logFactory") {
                 FactoryCreation(factory, logFactory)
             })
         }

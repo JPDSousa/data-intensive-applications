@@ -33,8 +33,8 @@ private class GenericCheckpointableIndexes<K>(private val indexFactories: Checkp
     : CheckpointableIndexes<K> {
 
     override fun generate(): Sequence<TestInstance<CheckpointableIndex<K>>> = indexFactories.generate().map {
-        TestInstance("Checkpointable index from ${it.name}") {
-            it.instance().create("Checkpointable index from ${it.name}")
+        TestInstance("Checkpointable index from $it") {
+            it.instance().create("Checkpointable index from $it")
         }
     }
 

@@ -51,7 +51,7 @@ class LogGenerator<T>(
     override fun generate(): Sequence<TestInstance<Log<T>>> = factories.generate().flatMap {
         sequence {
             for (size in testableSizes) {
-                yield(TestInstance("Log with initial size $size ~ ${it.name}") {
+                yield(TestInstance("Log with initial size $size ~ $it") {
                     // TODO candidate for function extraction
                     it.instance().create(resources.allocateTempLogFile())
                         .also { log ->
