@@ -7,8 +7,23 @@ import org.example.possiblyArrayEquals
 import org.example.recurrent.OpsBasedRecurrentJob
 import org.example.recurrent.RecurrentJob
 
+/**
+ * Log Structured Merge key value store.
+ *
+ * This Key-value store design is based on a series of [Segment], which store the structure data, and are occasionally
+ * compacted (see the definition of this operation in [compact]).
+ */
 interface LSMKeyValueStore<K, V>: KeyValueStore<K, V> {
 
+    /**
+     * Rearranges the current list of segments so that:
+     * - The resulting number of segments is less or equal than the original number of segments.
+     * - No valuable data is lost. Only redundant (i.e., stale) data is deleted.
+     * - The operation is idempotent. Compacting an LSM structure twice without updating the state in between operations
+     *   will render the second compact operation useless.
+     * - Compact operations without any effect on the underlying state may have a non-negligible computational cost.
+     * - Some implementations may call compact internally (similarly to [java.io.Writer.flush]).
+     */
     fun compact()
 }
 

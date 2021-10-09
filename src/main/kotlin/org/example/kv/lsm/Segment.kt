@@ -5,10 +5,11 @@ import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.TombstoneKeyValueStore
 import org.example.log.LogFactory
 import java.nio.file.Files
-import java.nio.file.Files.createFile
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.io.path.createFile
 import kotlin.streams.asSequence
 
 class Segment<K, V> (
@@ -30,56 +31,64 @@ interface OpenSegment<K, V>: TombstoneKeyValueStore<K, V> {
     fun isFull(): Boolean
 }
 
-abstract class SegmentManager<K, V>(
+interface OpenSegmentFactory<K, V> {
+
+    fun createOpenSegment(): OpenSegment<K, V>
+}
+
+open class SegmentManager<K, V>(
+    private val openSegmentFactory: OpenSegmentFactory<K, V>,
     private val directory: SegmentDirectory,
     private val logFactory: LogFactory<Map.Entry<K, V>>,
     private val logKVFactory: LogKeyValueStoreFactory<K, V>,
     private val mergeStrategy: SegmentMergeStrategy<K, V>,
-    private val segmentThreshold: Long)  {
+    private val segmentThreshold: Long): OpenSegmentFactory<K, V> by openSegmentFactory  {
 
     // TODO this is not accounting for extra files required by the segment
-    internal fun loadClosedSegments(): ClosedSegments<K, V> = directory.loadSegmentFiles()
-        .map { logFactory.create(it) }
+    internal fun loadClosedSegments(): ClosedSegments<K, V> = directory.loadSegmentFiles { files ->
+        files.map { logFactory.create(it) }
         .map { logKVFactory.createFromPair(it) }
         // TODO load segmentThreshold from file
         .map { Segment(it, segmentThreshold) }
         .toCollection(LinkedList())
         .let { ClosedSegments(mergeStrategy, it) }
+    }
 
-    abstract fun createOpenSegment(): OpenSegment<K, V>
 
 }
 
-class SegmentFactory<K, V>(private val directory: SegmentDirectory,
-                           private val logFactory: LogFactory<Map.Entry<K, V>>,
-                           private val logKVFactory: LogKeyValueStoreFactory<K, V>,
-                           private val segmentThreshold: Long) {
+class SegmentFactory<K, V>(
+    private val directory: SegmentDirectory,
+    private val logFactory: LogFactory<Map.Entry<K, V>>,
+    private val logKVFactory: LogKeyValueStoreFactory<K, V>,
+    private val segmentThreshold: Long,
+    private val idGenerator: AtomicInteger = AtomicInteger()
+) {
 
     fun createSegment(): Segment<K, V> = directory
-        .createSegmentFile()
+        .createSegmentFile(idGenerator.getAndIncrement())
         .let { logFactory.create(it) }
         .let { logKVFactory.createFromPair(it) }
         .let { Segment(it, segmentThreshold) }
 
 }
 
-class SegmentDirectory(private val path: Path,
-                       private val segCounter: AtomicInteger = AtomicInteger()
-) {
+class SegmentDirectory(private val path: Path) {
 
     // 1. Segment files should be sorted by causality
     // 2. This class should be resilient to dangling compacted segment files
     // 3. Some segments might require additional files (e.g., unsorted logs might persist hash indices)
 
     // TODO sort segments according to causality
-    fun loadSegmentFiles(): Sequence<Path> = Files.list(path)
-        .asSequence()
-        .filter { it.fileName.startsWith("seg-") }
+    fun <R> loadSegmentFiles(block: (Sequence<Path>) -> R): R = Files.list(path).use {
+        block(it.asSequence().filter { it.fileName.startsWith("seg-") })
+    }
 
-    fun createSegmentFile(): Path = segCounter
-        .getAndIncrement()
-        .toString()
+    fun createSegmentFile(segmentId: Int): Path = segmentId.toString()
         .let { "seg-$it" }
-        .let { path.resolve(it) }
+        .let { Paths.get(it) }
         .let { createFile(it) }
+
+    fun createFile(fileName: Path): Path = path.resolve(fileName)
+        .createFile()
 }

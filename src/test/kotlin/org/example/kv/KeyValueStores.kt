@@ -46,7 +46,7 @@ private class GenericKeyValueStores<K, V>(private val segmentManagers: SegmentMa
 
             for (segmentManager in segmentManagers) {
 
-                val instanceName = "LSM Key Value Store created from $factory using Segment Manager $segmentManager"
+                val instanceName = "${LSMKeyValueStore::class.simpleName} created from $factory using $segmentManager"
                 yield(TestInstance(instanceName) {
                     factory.instance().createLSMKeyValueStore(segmentManager.instance())
                 })

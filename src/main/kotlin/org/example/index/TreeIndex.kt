@@ -3,6 +3,8 @@ package org.example.index
 import org.koin.core.qualifier.named
 import java.util.*
 
+val treeIndexQ = named("treeIndex")
+
 private class TreeIndex<K: Comparable<K>>(private val index: MutableMap<K, Long> = TreeMap<K, Long>()): Index<K> {
 
     override fun putOffset(key: K, offset: Long) {
@@ -30,5 +32,3 @@ class TreeIndexFactory<K: Comparable<K>>: IndexFactory<K> {
     override fun create(indexName: String): Index<K> = TreeIndex()
 
 }
-
-val treeIndexQ = named("treeIndex")

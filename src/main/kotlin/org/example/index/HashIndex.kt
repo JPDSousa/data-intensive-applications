@@ -2,6 +2,8 @@ package org.example.index
 
 import org.koin.core.qualifier.named
 
+val hashIndexQ = named("hashIndex")
+
 private class HashIndex<K>(private val index: MutableMap<K, Long> = HashMap()): Index<K> {
 
     override fun putOffset(key: K, offset: Long) {
@@ -31,5 +33,3 @@ class HashIndexFactory<K>: IndexFactory<K> {
 
     override fun create(indexName: String): Index<K> = HashIndex()
 }
-
-val hashIndexQ = named("hashIndex")

@@ -3,6 +3,7 @@ package org.example
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import org.example.encoder.encoderModule
+import org.example.generator.CompositeGenerator
 import org.example.generator.primitiveGeneratorsModule
 import org.example.index.indexModule
 import org.example.kv.kvModule
@@ -10,6 +11,8 @@ import org.example.log.logModule
 import org.example.size.calculatorsModule
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.koin.core.module.Module
+import org.koin.core.qualifier.Qualifier
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 import java.time.Clock
@@ -29,6 +32,21 @@ private val testModule = module {
     single { TestResources() }
     single<CoroutineDispatcher> { Executors.newSingleThreadExecutor().asCoroutineDispatcher() }
     single { Clock.systemDefaultZone() }
+}
+
+inline fun <reified T, reified G: TestGenerator<T>> Module.mergeGenerators(
+    qualifiers: Iterable<Qualifier>,
+    crossinline block: (TestGenerator<T>) -> G) {
+
+    single {
+        block(
+            TestGeneratorAdapter(
+                CompositeGenerator(
+                    qualifiers.map { get<G>(it) }
+                )
+            )
+        )
+    }
 }
 
 fun application() = koinApplication {

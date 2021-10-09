@@ -119,22 +119,20 @@ class Indexes {
     fun <K> hashIndexes(): Sequence<TestInstance<Index<K>>> {
 
         val factory = HashIndexFactory<K>()
+        val instanceName = "${Index::class.simpleName} from ${HashIndexFactory::class.simpleName}"
 
-        val volatileHash = TestInstance("Hash Index") {
-            factory.create("HashIndex${generator.getAndIncrement()}")
-        }
-
-        return sequenceOf(volatileHash)
+        return sequenceOf(TestInstance(instanceName) {
+            factory.create("$instanceName (${generator.getAndIncrement()})")
+        })
     }
 
     fun <K: Comparable<K>> treeIndexes(): Sequence<TestInstance<Index<K>>> {
 
         val factory = TreeIndexFactory<K>()
-        val transientTree = TestInstance("Tree Index") {
-            factory.create("TreeIndex${generator.getAndIncrement()}")
-        }
+        val instanceName = "${Index::class.simpleName} from ${TreeIndexFactory::class.simpleName}"
 
-        return sequenceOf(transientTree)
+        return sequenceOf(TestInstance(instanceName) {
+            factory.create("$instanceName (${generator.getAndIncrement()})")
+        })
     }
-
 }

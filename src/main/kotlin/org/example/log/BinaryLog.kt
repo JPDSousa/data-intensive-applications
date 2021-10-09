@@ -11,6 +11,8 @@ import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
 import java.util.zip.CRC32
 
+val binaryLogQ = named("binarylog")
+
 private class BinaryLog(private val path: Path,
                         override var lastOffset: Long,
                         override var size: Long): Log<ByteArray> {
@@ -160,5 +162,3 @@ class BinaryLogFactory: LogFactory<ByteArray> {
     }
 
 }
-
-val binaryLogQ = named("binarylog")

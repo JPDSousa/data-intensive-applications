@@ -16,7 +16,7 @@ internal val keyValueStoreFactoriesModule = module {
 
     single<StringStringLSMKeyValueStoreFactories> {
         DelegateStringStringLSMKeyValueStoreFactories(
-            Generic(
+            GenericLSMKeyValueStoreFactories(
                 get(),
                 Tombstone.string
             )
@@ -25,7 +25,7 @@ internal val keyValueStoreFactoriesModule = module {
 
     single<LongByteArrayLSMKeyValueStoreFactories> {
         DelegateLongByteArrayLSMKeyValueStoreFactories(
-            Generic(
+            GenericLSMKeyValueStoreFactories(
                 get(),
                 Tombstone.byte
             )
@@ -39,11 +39,11 @@ private class DelegateStringStringLSMKeyValueStoreFactories(private val delegate
 private class DelegateLongByteArrayLSMKeyValueStoreFactories(private val delegate: LSMKeyValueStoreFactories<Long, ByteArray>):
     LongByteArrayLSMKeyValueStoreFactories, LSMKeyValueStoreFactories<Long, ByteArray> by delegate
 
-private class Generic<K, V>(private val dispatcher: CoroutineDispatcher,
-                            private val tombstone: V): LSMKeyValueStoreFactories<K, V> {
+private class GenericLSMKeyValueStoreFactories<K, V>(private val dispatcher: CoroutineDispatcher,
+                                                     private val tombstone: V): LSMKeyValueStoreFactories<K, V> {
 
     override fun generate(): Sequence<TestInstance<LSMKeyValueStoreFactory<K, V>>> = sequenceOf(
-        TestInstance("LSM Key Value Store Factory") {
+        TestInstance("${LSMKeyValueStoreFactory::class.simpleName} with Tombstone '$tombstone' and $dispatcher") {
             LSMKeyValueStoreFactory(tombstone, dispatcher)
         }
     )

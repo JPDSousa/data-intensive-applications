@@ -4,6 +4,8 @@ import org.example.encoder.Encoder
 import org.koin.core.qualifier.named
 import java.nio.file.Path
 
+val logEncoderQ = named("logEncoder")
+
 class LogEncoder<S, T>(private val log: Log<T>,
                        private val encoder: Encoder<S, T>): Log<S> {
 
@@ -34,5 +36,3 @@ class LogEncoderFactory<S, T>(private val innerFactory: LogFactory<T>,
 
     override fun create(logPath: Path): Log<S> = LogEncoder(innerFactory.create(logPath), encoder)
 }
-
-val logEncoderQ = named("logEncoder")

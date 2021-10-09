@@ -5,6 +5,7 @@ import org.example.index.CheckpointableIndexFactory
 import org.example.index.Index
 import org.example.index.IndexEntry
 import org.example.log.Log
+import org.example.log.LogFactory
 
 private class IndexedKeyValueStore<K, V>(
         private val index: Index<K>,
@@ -17,11 +18,10 @@ private class IndexedKeyValueStore<K, V>(
         this.index.putOffset(key, offset)
     }
 
-    override fun putAll(entries: Map<K, V>) {
+    override fun putAll(entries: Map<out K, V>) {
 
+        val offsets = logKV.appendAll(entries)
         if (entries.isNotEmpty()) {
-            val offsets = logKV.appendAll(entries)
-
             index.putAllOffsets(entries.keys.zipIndex(offsets))
         }
     }
@@ -81,8 +81,9 @@ private class IndexedKeyValueStore<K, V>(
 class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: CheckpointableIndexFactory<K>,
                                         private val tombstone: V,
                                         private val innerKVSFactory: LogKeyValueStoreFactory<K, V>,
+                                        override val logFactory: LogFactory<Map.Entry<K, V>>,
                                         nameGenerator: Generator<String>)
-    : LogKeyValueStoreFactory<K, V> {
+    : LogKeyValueStoreFactory<K, V>, PropertyLogKeyValueStoreFactoryMixin<K, V> {
 
     private val nameIterator = nameGenerator.generate().iterator()
 
@@ -93,10 +94,8 @@ class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: Checkpointable
 
     override fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V> {
 
-
         val index = indexFactory.create("Index${generateName()}")
         val logKV = innerKVSFactory.createFromPair(log)
-        
 
         val indexLastOffset = index.lastOffset
         val kvLastOffset = logKV.lastOffset

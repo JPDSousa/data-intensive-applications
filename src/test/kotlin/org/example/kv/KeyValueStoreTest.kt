@@ -1,6 +1,7 @@
 package org.example.kv
 
 import org.example.TestInstance
+import org.example.TestResources
 import org.example.assertPossiblyArrayEquals
 import org.example.test
 import org.junit.jupiter.api.Assertions.assertAll
@@ -12,6 +13,8 @@ import org.junit.jupiter.api.function.Executable
 @Suppress("FunctionName")
 interface KeyValueStoreTest<K, V> {
 
+    val resources: TestResources
+
     fun instances(): Sequence<TestInstance<KeyValueStore<K, V>>>
 
     fun nextKey(): K
@@ -20,6 +23,7 @@ interface KeyValueStoreTest<K, V> {
     
     @TestFactory fun `absent key`(info: TestInfo) = instances().test(info) { kv ->
         assertNull(kv.get(nextKey()))
+        resources.close()
     }
 
     @TestFactory fun `written value should be readable`(info: TestInfo) = instances().test(info) { kv ->
@@ -28,6 +32,7 @@ interface KeyValueStoreTest<K, V> {
 
         kv.put(key, expected)
         assertPossiblyArrayEquals(expected, kv.get(key))
+        resources.close()
     }
 
     @TestFactory fun `multiple keys are isolated`(info: TestInfo) = instances().test(info) { kv ->
@@ -36,6 +41,7 @@ interface KeyValueStoreTest<K, V> {
         kv.putAll(entries)
 
         assertAll(entries.map { GetAssertion(kv, it.key, it.value) })
+        resources.close()
     }
 
     @TestFactory fun `key update`(info: TestInfo) = instances().test(info) { kv ->
@@ -47,6 +53,7 @@ interface KeyValueStoreTest<K, V> {
         kv.put(key, new)
 
         assertPossiblyArrayEquals(new, kv.get(key))
+        resources.close()
     }
 
     @TestFactory fun `deleted key becomes absent`(info: TestInfo) = instances().test(info) { kv ->
@@ -61,6 +68,7 @@ interface KeyValueStoreTest<K, V> {
         kv.delete(key1)
         assertNull(kv.get(key1))
         assertPossiblyArrayEquals(kv.get(key2), value2)
+        resources.close()
     }
 
 }

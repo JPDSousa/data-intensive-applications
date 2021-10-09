@@ -5,6 +5,7 @@ import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.TombstoneKeyValueStore
 import org.example.kv.lsm.*
 import org.example.log.LogFactory
+import java.util.concurrent.atomic.AtomicInteger
 
 private class SequentialOpenSegment<K, V>(private val keyValueStore: LogKeyValueStore<K, V>,
                                           private val segmentThreshold: Long = 1024L * 1024L):
@@ -15,17 +16,17 @@ private class SequentialOpenSegment<K, V>(private val keyValueStore: LogKeyValue
     override fun isFull(): Boolean = keyValueStore.size >= segmentThreshold
 }
 
-class SequentialSegmentManager<K, V>(private val segmentDirectory: SegmentDirectory,
-                                     private val logFactory: LogFactory<Map.Entry<K, V>>,
-                                     private val keyValueStoreFactory: LogKeyValueStoreFactory<K, V>,
-                                     segmentThreshold: Long,
-                                     mergeStrategy: SequentialLogMergeStrategy<K, V>
-):
-    SegmentManager<K, V>(segmentDirectory, logFactory, keyValueStoreFactory, mergeStrategy, segmentThreshold) {
+class SequentialOpenSegmentFactory<K, V>(
+    private val segmentDirectory: SegmentDirectory,
+    private val logFactory: LogFactory<Map.Entry<K, V>>,
+    private val keyValueStoreFactory: LogKeyValueStoreFactory<K, V>,
+    private val segCounter: AtomicInteger = AtomicInteger()
+): OpenSegmentFactory<K, V> {
 
     override fun createOpenSegment(): OpenSegment<K, V> = segmentDirectory
-        .createSegmentFile()
+        .createSegmentFile(segCounter.getAndIncrement())
         .let { logFactory.create(it) }
         .let { keyValueStoreFactory.createFromPair(it) }
         .let { SequentialOpenSegment(it) }
+
 }

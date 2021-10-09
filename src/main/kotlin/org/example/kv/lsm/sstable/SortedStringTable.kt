@@ -3,45 +3,37 @@ package org.example.kv.lsm.sstable
 import org.example.kv.LogKeyValueStore
 import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.lsm.OpenSegment
+import org.example.kv.lsm.OpenSegmentFactory
 import org.example.kv.lsm.Segment
 import org.example.kv.lsm.SegmentDirectory
-import org.example.kv.lsm.SegmentManager
 import org.example.log.LogFactory
-import org.example.size.SizeCalculator
-import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 
-private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: SortedMap<K, V>,
-                                                        private val dump: LogKeyValueStore<K, V>,
-                                                        private val keySize: SizeCalculator<K>,
-                                                        private val valueSize: SizeCalculator<V>,
-                                                        private val tombstone: V,
-                                                        private val segmentThreshold: Long,
-                                                        private var dumped: Boolean = false)
+private class SortedMapStringTable<K: Comparable<K>, V>(
+    private val memTable: MemTable<K, V>,
+    private val dump: LogKeyValueStore<K, V>,
+    private val segmentThreshold: Long,
+    private var dumped: Boolean = false
+)
     : OpenSegment<K, V> {
-
-    private var memCacheSize: Long = 0L
 
     override fun put(key: K, value: V) {
         when(dumped) {
             true -> throw IllegalStateException("Cannot write to a SSTable which has already been dumped.")
-            false -> {
-                memTable[key] = value
-                memCacheSize += keySize.sizeOf(key)
-                memCacheSize += valueSize.sizeOf(value)
-            }
+            false -> memTable.put(key, value)
         }
     }
 
     override fun get(key: K, offset: Long?): V? = when(dumped) {
         true -> dump.get(key, offset)
         // offset is ignored here. Is this problematic?
-        false -> memTable[key]
+        false -> memTable.get(key)
     }
 
     override fun delete(key: K) {
         when(dumped) {
             true -> throw IllegalStateException("Cannot delete entries to a SSTable which has already been dumped.")
-            false -> memTable[key] = tombstone
+            false -> memTable.delete(key)
         }
     }
 
@@ -55,7 +47,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
     private val size: Long
     get() = when (dumped) {
         true -> dump.size
-        false -> memCacheSize
+        false -> memTable.byteSize
     }
 
     override fun closeSegment(): Segment<K, V> = when(dumped) {
@@ -76,19 +68,25 @@ private class SortedMapStringTable<K: Comparable<K>, V>(private val memTable: So
 
 }
 
-class SSTableSegmentManager<K: Comparable<K>, V>(private val segmentDirectory: SegmentDirectory,
-                                                 private val logFactory: LogFactory<Map.Entry<K, V>>,
-                                                 private val keyValueStoreFactory: LogKeyValueStoreFactory<K, V>,
-                                                 mergeStrategy: SSTableMergeStrategy<K, V>,
-                                                 private val segmentThreshold: Long,
-                                                 private val keySize: SizeCalculator<K>,
-                                                 private val valueSize: SizeCalculator<V>,
-                                                 private val tombstone: V)
-    : SegmentManager<K, V>(segmentDirectory, logFactory, keyValueStoreFactory, mergeStrategy, segmentThreshold) {
+class SSTableOpenSegmentFactory<K: Comparable<K>, V>(
+    private val segmentDirectory: SegmentDirectory,
+    private val memTableFactory: MemTableFactory<K, V>,
+    private val logFactory: LogFactory<Map.Entry<K, V>>,
+    private val keyValueStoreFactory: LogKeyValueStoreFactory<K, V>,
+    private val segmentThreshold: Long,
+    private val segCounter: AtomicInteger = AtomicInteger()
+) : OpenSegmentFactory<K, V> {
 
-    override fun createOpenSegment(): OpenSegment<K, V> = segmentDirectory
-        .createSegmentFile()
-        .let { logFactory.create(it) }
-        .let { keyValueStoreFactory.createFromPair(it) }
-        .let { SortedMapStringTable(TreeMap(), it, keySize, valueSize, tombstone, segmentThreshold) }
+    override fun createOpenSegment(): OpenSegment<K, V> {
+        val segmentId = segCounter.getAndIncrement()
+
+        return segmentDirectory.createSegmentFile(segmentId)
+            .let { logFactory.create(it) }
+            .let { keyValueStoreFactory.createFromPair(it) }
+            .let { SortedMapStringTable(
+                memTableFactory.createMemTable(segmentDirectory, segmentId),
+                it,
+                segmentThreshold
+            ) }
+    }
 }

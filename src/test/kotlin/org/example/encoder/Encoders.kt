@@ -81,7 +81,7 @@ private class DelegateLongByteArrayMapEntry2ByteArrayEncoders(
 class StringEncoderGenerator<S>(private val serializer: KSerializer<S>): Encoders<S, String> {
 
     override fun generate() = sequenceOf<TestInstance<Encoder<S, String>>>(
-        TestInstance("Json encoder") { JsonStringEncoder(serializer) }
+        TestInstance("${JsonStringEncoder::class.simpleName}") { JsonStringEncoder(serializer) }
     )
 }
 
@@ -89,14 +89,6 @@ class ProtobufEncoderGenerator<S>(private val serializer: KSerializer<S>): Encod
 
     @ExperimentalSerializationApi
     override fun generate() = sequenceOf(
-        TestInstance("Protobuf encoder") { ProtobufBinaryEncoder(serializer) }
+        TestInstance("${ProtobufBinaryEncoder::class.simpleName}") { ProtobufBinaryEncoder(serializer) }
     )
 }
-
-private class ByteArrayStringEncoderGenerator: TestGenerator<Encoder<String, ByteArray>> {
-
-    override fun generate() = sequenceOf(
-        TestInstance("native string to byte encoder") { ByteArrayStringEncoder() }
-    )
-}
-

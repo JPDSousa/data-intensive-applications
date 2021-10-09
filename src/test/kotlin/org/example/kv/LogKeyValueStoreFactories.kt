@@ -9,6 +9,9 @@ import org.example.generator.StringGenerator
 import org.example.index.CheckpointableIndexFactories
 import org.example.index.LongCheckpointableIndexFactories
 import org.example.index.StringCheckpointableIndexFactories
+import org.example.log.LogFactories
+import org.example.log.LongByteArrayMapEntryLogFactories
+import org.example.log.StringStringMapEntryLogFactories
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
 
@@ -16,26 +19,33 @@ val logKeyValueStoreFactoryModule = module {
 
     single<StringStringLogKeyValueStoreFactories> {
         DelegateStringStringLogKeyValueStoreFactories(
-            composite<String, String, StringCheckpointableIndexFactories>(this, Tombstone.string))
+            composite<String, String, StringStringMapEntryLogFactories,
+                    StringCheckpointableIndexFactories>(Tombstone.string))
     }
 
     single<LongByteArrayLogKeyValueStoreFactories> {
         DelegateLongByteArrayLogKeyValueStoreFactories(
-            composite<Long, ByteArray, LongCheckpointableIndexFactories>(this, Tombstone.byte))
+            composite<Long, ByteArray,
+                    LongByteArrayMapEntryLogFactories, LongCheckpointableIndexFactories>(Tombstone.byte))
     }
 }
 
-private inline fun <K, V, reified C: CheckpointableIndexFactories<K>> composite(scope: Scope, tombstone: V)
+private inline fun <K, V, reified L: LogFactories<Map.Entry<K, V>>,
+        reified C: CheckpointableIndexFactories<K>> Scope.composite(tombstone: V)
         : TestGenerator<LogKeyValueStoreFactory<K, V>> {
 
-    val singleFactories = SingleLogKeyValueStoreFactories<K, V>(tombstone)
+    val singleFactories = SingleLogKeyValueStoreFactories(
+        get<L>(),
+        tombstone
+    )
     return TestGeneratorAdapter(
         CompositeGenerator(listOf(
             IndexedLogKeyValueStoreFactories(
                 tombstone,
-                scope.get<C>(),
+                get<C>(),
                 singleFactories,
-                scope.get<StringGenerator>()
+                get<L>(),
+                get<StringGenerator>()
             ),
             singleFactories
         ))
@@ -58,6 +68,7 @@ private class DelegateLongByteArrayLogKeyValueStoreFactories(
 private class IndexedLogKeyValueStoreFactories<K, V>(private val tombstone: V,
                                                      private val indexFactories: CheckpointableIndexFactories<K>,
                                                      private val localKVSFactories: LogKeyValueStoreFactories<K, V>,
+                                                     private val logFactories: LogFactories<Map.Entry<K, V>>,
                                                      private val stringGenerator: Generator<String>)
     : LogKeyValueStoreFactories<K, V> {
 
@@ -67,25 +78,39 @@ private class IndexedLogKeyValueStoreFactories<K, V>(private val tombstone: V,
 
             for (localKVSFactory in localKVSFactories) {
 
-                yield(TestInstance("${IndexedKeyValueStoreFactory::class.simpleName} with $indexFactory, " +
-                        "Tombstone '$tombstone', $localKVSFactory and $stringGenerator") {
-                    IndexedKeyValueStoreFactory(
-                        indexFactory.instance(),
-                        tombstone,
-                        localKVSFactory.instance(),
-                        stringGenerator
-                    )
-                })
+                for (logFactory in logFactories) {
+
+                    yield(TestInstance("${IndexedKeyValueStoreFactory::class.simpleName} with $indexFactory, " +
+                            "Tombstone '$tombstone', $localKVSFactory, $logFactory and $stringGenerator") {
+                        IndexedKeyValueStoreFactory(
+                            indexFactory.instance(),
+                            tombstone,
+                            localKVSFactory.instance(),
+                            logFactory.instance(),
+                            stringGenerator
+                        )
+                    })
+                }
             }
         }
     }
 }
 
-private class SingleLogKeyValueStoreFactories<K, V>(private val tombstone: V): LogKeyValueStoreFactories<K, V> {
+private class SingleLogKeyValueStoreFactories<K, V>(
+    private val logFactories: LogFactories<Map.Entry<K, V>>,
+    private val tombstone: V
+): LogKeyValueStoreFactories<K, V> {
 
-    override fun generate(): Sequence<TestInstance<LogKeyValueStoreFactory<K, V>>> = sequenceOf(
-        TestInstance("${SingleLogKeyValueStoreFactory::class.simpleName} with Tombstone '$tombstone'") {
-            SingleLogKeyValueStoreFactory(tombstone)
+    override fun generate(): Sequence<TestInstance<LogKeyValueStoreFactory<K, V>>> = sequence {
+
+        for (logFactory in logFactories) {
+            yield(TestInstance("${SingleLogKeyValueStoreFactory::class.simpleName} with $logFactory and Tombstone '$tombstone'") {
+                SingleLogKeyValueStoreFactory(
+                    logFactory.instance(),
+                    tombstone
+                )
+            })
         }
-    )
+
+    }
 }

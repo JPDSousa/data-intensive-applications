@@ -1,6 +1,7 @@
 package org.example.kv
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import org.example.TestResources
 import org.example.application
 import org.example.generator.ByteArrayGenerator
 import org.example.generator.LongGenerator
@@ -11,6 +12,9 @@ import org.koin.core.KoinApplication
 
 
 internal abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
+
+    override val resources: TestResources
+        get() = application.koin.get()
 
     companion object {
 

@@ -14,6 +14,8 @@ import java.util.zip.CRC32
 import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
+val lineLogQ = named("lineLog")
+
 // TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
 private class LineLog(private val path: Path,
                       private val charset: Charset,
@@ -157,5 +159,3 @@ class LineLogFactory: LogFactory<String> {
 
     override fun toString(): String = "String Log Factory"
 }
-
-val lineLogQ = named("lineLog")

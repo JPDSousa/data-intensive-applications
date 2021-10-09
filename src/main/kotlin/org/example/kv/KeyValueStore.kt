@@ -1,12 +1,14 @@
 package org.example.kv
 
 import org.example.log.Log
+import org.example.log.LogFactory
+import java.nio.file.Path
 
 interface KeyValueStore<K, V> {
 
     fun put(key: K, value: V)
 
-    fun putAll(entries: Map<K, V>) {
+    fun putAll(entries: Map<out K, V>) {
         entries.forEach(this::put)
     }
 
@@ -21,7 +23,7 @@ interface LogKeyValueStore<K, V>: TombstoneKeyValueStore<K, V> {
 
     fun append(key: K, value: V): Long
 
-    fun appendAll(entries: Map<K, V>): Sequence<Long>
+    fun appendAll(entries: Map<out K, V>): Sequence<Long>
 
     fun getWithOffset(key: K): ValueWithOffset<V>?
 
@@ -56,4 +58,15 @@ data class ValueWithOffset<V>(val offset: Long, val value: V)
 interface LogKeyValueStoreFactory<K, V> {
 
     fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V>
+
+    fun createFromPair(logPath: Path): LogKeyValueStore<K, V>
+}
+
+interface PropertyLogKeyValueStoreFactoryMixin<K, V>: LogKeyValueStoreFactory<K, V> {
+
+    val logFactory: LogFactory<Map.Entry<K, V>>
+
+    override fun createFromPair(logPath: Path) = createFromPair(logPath.asLog())
+
+    private fun Path.asLog() = logFactory.create(this)
 }

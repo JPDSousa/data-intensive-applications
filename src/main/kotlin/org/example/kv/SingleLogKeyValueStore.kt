@@ -3,6 +3,7 @@ package org.example.kv
 import org.example.DataEntry
 import org.example.log.EntryWithOffset
 import org.example.log.Log
+import org.example.log.LogFactory
 import org.example.possiblyArrayEquals
 
 private class SingleLogKeyValueStore<K, V>(override val log: Log<Map.Entry<K, V>>,
@@ -22,7 +23,7 @@ private class SingleLogKeyValueStore<K, V>(override val log: Log<Map.Entry<K, V>
 
     override fun append(key: K, value: V) = log.append(DataEntry(key, value))
 
-    override fun appendAll(entries: Map<K, V>) = when {
+    override fun appendAll(entries: Map<out K, V>) = when {
         entries.isEmpty() -> emptySequence()
         else -> {
             val content = ArrayList<Map.Entry<K, V>>(entries.size)
@@ -50,7 +51,10 @@ private class SingleLogKeyValueStore<K, V>(override val log: Log<Map.Entry<K, V>
 
 }
 
-class SingleLogKeyValueStoreFactory<K, V>(private val tombstone: V): LogKeyValueStoreFactory<K, V> {
+internal class SingleLogKeyValueStoreFactory<K, V>(
+    override val logFactory: LogFactory<Map.Entry<K, V>>,
+    private val tombstone: V
+): LogKeyValueStoreFactory<K, V>, PropertyLogKeyValueStoreFactoryMixin<K, V> {
 
     override fun createFromPair(log: Log<Map.Entry<K, V>>): LogKeyValueStore<K, V>
             = SingleLogKeyValueStore(log, tombstone)

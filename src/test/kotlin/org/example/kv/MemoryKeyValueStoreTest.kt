@@ -1,14 +1,15 @@
 package org.example.kv
 
 import org.example.TestInstance
+import org.example.generator.StringGenerator
 import java.util.concurrent.atomic.AtomicLong
 
-internal class MemoryKeyValueStoreTest: KeyValueStoreTest<String, String> {
+internal class MemoryKeyValueStoreTest: AbstractIndexedKeyValueStoreTest<String, String>() {
 
     private val uniqueGenerator = AtomicLong()
 
     override fun instances() = sequenceOf(
-        TestInstance("Memory KV") {
+        TestInstance("${MemoryKeyValueStore::class.simpleName}") {
             MemoryKeyValueStore<String, String>()
         }
     )
@@ -17,4 +18,5 @@ internal class MemoryKeyValueStoreTest: KeyValueStoreTest<String, String> {
         .toString()
 
     override fun nextValue() = nextKey()
+
 }

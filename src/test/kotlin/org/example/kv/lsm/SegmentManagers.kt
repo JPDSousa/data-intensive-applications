@@ -2,9 +2,15 @@ package org.example.kv.lsm
 
 import org.example.TestGenerator
 import org.example.TestGeneratorAdapter
+import org.example.TestInstance
 import org.example.generator.CompositeGenerator
-import org.example.kv.lsm.sequential.sequentialQ
-import org.example.kv.lsm.sstable.sstableQ
+import org.example.kv.LogKeyValueStoreFactories
+import org.example.kv.LongByteArrayLogKeyValueStoreFactories
+import org.example.kv.StringStringLogKeyValueStoreFactories
+import org.example.kv.segmentThreshold
+import org.example.log.LogFactories
+import org.example.log.LongByteArrayMapEntryLogFactories
+import org.example.log.StringStringMapEntryLogFactories
 import org.koin.dsl.module
 
 interface SegmentManagers<K, V>: TestGenerator<SegmentManager<K, V>>
@@ -36,19 +42,72 @@ fun longByteArraySegmentManager(managers: Iterable<TestGenerator<SegmentManager<
     )
 )
 
+private class GenericSegmentManagers<K: Comparable<K>, V>(
+    private val logFactories: LogFactories<Map.Entry<K, V>>,
+    private val segmentKVFactories: LogKeyValueStoreFactories<K, V>,
+    private val openSegmentFactories: OpenSegmentFactories<K, V>,
+    private val segmentMergeStrategies: SegmentMergeStrategies<K, V>,
+    private val segmentDirectories: SegmentDirectories
+): SegmentManagers<K, V> {
+
+    override fun generate(): Sequence<TestInstance<SegmentManager<K, V>>> = sequence {
+
+        for (logFactory in logFactories) {
+
+            for (segmentKVFactory in segmentKVFactories) {
+
+                for (openSegmentFactory in openSegmentFactories) {
+
+                    for (segmentMergeStrategy in segmentMergeStrategies) {
+
+                        for (segmentDirectory in segmentDirectories) {
+
+                            val instanceName = "${SegmentManager::class.simpleName} with $logFactory, " +
+                                    "$segmentKVFactory, $openSegmentFactory, $segmentMergeStrategy and " +
+                                    "$segmentDirectory"
+                            yield(TestInstance(instanceName) {
+
+                                SegmentManager(
+                                    openSegmentFactory.instance(),
+                                    segmentDirectory.instance(),
+                                    logFactory.instance(),
+                                    segmentKVFactory.instance(),
+                                    segmentMergeStrategy.instance(),
+                                    segmentThreshold
+                                )
+                            })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 val segmentManagersModule = module {
 
     single {
         stringStringSegmentManager(listOf(
-            get<StringStringSegmentManagers>(sequentialQ),
-            get<StringStringSegmentManagers>(sstableQ)
+            GenericSegmentManagers(
+                get<StringStringMapEntryLogFactories>(),
+                get<StringStringLogKeyValueStoreFactories>(),
+                get<StringStringOpenSegmentFactories>(),
+                get<StringStringSegmentMergeStrategies>(),
+                get(),
+            ),
         ))
     }
 
     single {
         longByteArraySegmentManager(listOf(
-            get<LongByteArraySegmentManagers>(sequentialQ),
-            get<LongByteArraySegmentManagers>(sstableQ),
+            GenericSegmentManagers(
+                get<LongByteArrayMapEntryLogFactories>(),
+                get<LongByteArrayLogKeyValueStoreFactories>(),
+                get<LongByteArrayOpenSegmentFactories>(),
+                get<LongByteArraySegmentMergeStrategies>(),
+                get()
+            ),
         ))
     }
+
 }

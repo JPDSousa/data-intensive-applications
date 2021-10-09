@@ -130,7 +130,9 @@ private class GenericCheckpointableIndexFactories<K>(private val resources: Test
 
                         for (indexFactory in config.indexFactories) {
 
-                            yield(TestInstance("Checkpointable String Index ~ $factory") {
+                            val instanceName = "${CheckpointableIndexFactory::class.simpleName} with $factory, " +
+                                    "$instantEncoder, $entryLogFactory and $indexFactory"
+                            yield(TestInstance(instanceName) {
 
                                 createCheckpointableIndex(
                                     createCheckpointStoreFactory(

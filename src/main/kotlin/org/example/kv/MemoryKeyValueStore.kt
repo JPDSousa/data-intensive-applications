@@ -4,7 +4,7 @@ class MemoryKeyValueStore<K, V>(private val map: MutableMap<K, V> = mutableMapOf
 
     override fun put(key: K, value: V) { map[key] = value }
 
-    override fun putAll(entries: Map<K, V>) { map.putAll(entries) }
+    override fun putAll(entries: Map<out K, V>) { map.putAll(entries) }
 
     override fun get(key: K): V? = map[key]
 
