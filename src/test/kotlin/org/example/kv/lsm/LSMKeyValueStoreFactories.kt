@@ -12,7 +12,7 @@ interface StringStringLSMKeyValueStoreFactories: LSMKeyValueStoreFactories<Strin
 
 interface LongByteArrayLSMKeyValueStoreFactories: LSMKeyValueStoreFactories<Long, ByteArray>
 
-val lsmKeyValueStoreFactoriesModule = module {
+internal val keyValueStoreFactoriesModule = module {
 
     single<StringStringLSMKeyValueStoreFactories> {
         DelegateStringStringLSMKeyValueStoreFactories(

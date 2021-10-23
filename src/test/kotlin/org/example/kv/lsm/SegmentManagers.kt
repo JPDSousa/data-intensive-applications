@@ -36,7 +36,7 @@ fun longByteArraySegmentManager(managers: Iterable<TestGenerator<SegmentManager<
     )
 )
 
-val sequentialSegmentManagersModule = module {
+val segmentManagersModule = module {
 
     single {
         stringStringSegmentManager(listOf(

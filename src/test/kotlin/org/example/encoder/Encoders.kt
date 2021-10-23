@@ -9,7 +9,7 @@ import org.example.TestInstance
 import org.koin.dsl.module
 import java.time.Instant
 
-val encodersModule = module {
+val encoderModule = module {
     single<Instant2StringEncoders> {
         DelegateInstant2StringEncoders(
             StringEncoderGenerator(InstantSerializer())

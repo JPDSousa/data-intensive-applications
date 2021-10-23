@@ -5,7 +5,7 @@ import org.example.TestInstance
 import org.example.kv.lsm.*
 import org.koin.dsl.module
 
-val keyValueStoresModule = module {
+internal val keyValueStoresModule = module {
 
     single<ByteArrayKeyValueStores> {
         ByteArrayDelegate(

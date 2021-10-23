@@ -15,7 +15,7 @@ import org.koin.dsl.module
 
 val sequentialQ = named("sequentialSegmentManager")
 
-val segmentManagersModule = module {
+internal val segmentManagersModule = module {
 
     single(sequentialQ) {
         stringStringSegmentManager(listOf(

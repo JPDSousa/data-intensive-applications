@@ -18,7 +18,7 @@ import org.koin.dsl.module
 
 val sstableQ = named("sstableSegmentManager")
 
-val sstableSegmentManagersModule = module {
+internal val sstableSegmentManagersModule = module {
 
     single(sstableQ) {
         stringStringSegmentManager(listOf(
