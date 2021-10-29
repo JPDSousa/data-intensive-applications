@@ -1,25 +1,20 @@
 package org.example.kv.lsm.sstable
 
+import org.example.concepts.ClearMixin
+import org.example.concepts.ImmutableDictionaryMixin
 import org.example.kv.LogKeyValueStoreFactory
+import org.example.concepts.MutableDictionaryMixin
 import org.example.kv.TombstoneKeyValueStore
 import org.example.kv.lsm.SegmentDirectory
 import org.example.size.SizeCalculator
 import java.nio.file.Paths
 import java.util.*
 
-interface MemTable<K, V>{
+interface MemTable<K, V>: ImmutableDictionaryMixin<K, V>, MutableDictionaryMixin<K, V>, ClearMixin {
 
     val byteSize: Long
 
-    fun put(key: K, value: V)
-
-    fun get(key: K): V?
-
-    fun delete(key: K)
-
-    fun clear()
-
-    fun forEach(action: (K, V) -> Unit)
+    fun forEach(action: (Map.Entry<K, V>) -> Unit)
 }
 
 class WriteAheadMemTable<K: Comparable<K>, V>(private val memTable: SortedMap<K, V>,
@@ -34,7 +29,7 @@ class WriteAheadMemTable<K: Comparable<K>, V>(private val memTable: SortedMap<K,
         memTable[key] = value
         byteSize += keySize.sizeOf(key)
         byteSize += valueSize.sizeOf(value)
-        writeAhead.put(key, value)
+        writeAhead[key] = value
     }
 
     override fun clear() {
@@ -54,7 +49,7 @@ class WriteAheadMemTable<K: Comparable<K>, V>(private val memTable: SortedMap<K,
 
     override fun get(key: K): V? = memTable[key]
 
-    override fun forEach(action: (K, V) -> Unit) = memTable.forEach(action)
+    override fun forEach(action: (Map.Entry<K, V>) -> Unit) = memTable.forEach(action)
 }
 
 class MemTableFactory<K: Comparable<K>, V>(private val kvFactory: LogKeyValueStoreFactory<K, V>,

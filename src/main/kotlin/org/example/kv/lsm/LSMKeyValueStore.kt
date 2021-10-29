@@ -2,6 +2,7 @@ package org.example.kv.lsm
 
 import kotlinx.coroutines.CoroutineDispatcher
 import mu.KotlinLogging
+import org.example.concepts.CompressMixin
 import org.example.kv.KeyValueStore
 import org.example.possiblyArrayEquals
 import org.example.recurrent.OpsBasedRecurrentJob
@@ -11,9 +12,10 @@ import org.example.recurrent.RecurrentJob
  * Log Structured Merge key value store.
  *
  * This Key-value store design is based on a series of [Segment], which store the structure data, and are occasionally
- * compacted (see the definition of this operation in [compact]).
+ * compacted (see the definition of this operation in [compress]).
  */
-interface LSMKeyValueStore<K, V>: KeyValueStore<K, V> {
+// TODO should extend from LogKeyValueStore
+interface LSMKeyValueStore<K, V>: KeyValueStore<K, V>, CompressMixin {
 
     /**
      * Rearranges the current list of segments so that:
@@ -24,18 +26,18 @@ interface LSMKeyValueStore<K, V>: KeyValueStore<K, V> {
      * - Compact operations without any effect on the underlying state may have a non-negligible computational cost.
      * - Some implementations may call compact internally (similarly to [java.io.Writer.flush]).
      */
-    fun compact()
+    override fun compress()
 }
 
 private class RecurrentMergeDecorator<K, V>(private val decorated: LSMKeyValueStore<K, V>,
                                             private val recurrentJob: RecurrentJob): LSMKeyValueStore<K, V> {
 
     override fun put(key: K, value: V) {
-        decorated.put(key, value)
+        decorated[key] = value
         recurrentJob.registerOperation()
     }
 
-    override fun get(key: K): V? = decorated.get(key)
+    override fun get(key: K): V? = decorated[key]
         .also { recurrentJob.registerOperation() }
 
     override fun delete(key: K) {
@@ -48,8 +50,8 @@ private class RecurrentMergeDecorator<K, V>(private val decorated: LSMKeyValueSt
         recurrentJob.reset()
     }
 
-    override fun compact() {
-        decorated.compact()
+    override fun compress() {
+        decorated.compress()
     }
 
 }
@@ -63,12 +65,12 @@ private class SegmentedLSM<K, V>(private val segmentManager: SegmentManager<K, V
     private var openSegment = segmentManager.createOpenSegment()
 
     // assumes thread local environment
-    override fun compact() {
+    override fun compress() {
         closedSegments.compact()
     }
 
     override fun put(key: K, value: V) {
-        openSegment.put(key, value)
+        openSegment[key] = value
         if (openSegment.isFull()) {
             closedSegments.accept(openSegment)
             openSegment = segmentManager.createOpenSegment()
@@ -120,7 +122,7 @@ class LSMKeyValueStoreFactory<K, V>(private val tombstone: V, private val dispat
     }
 
     private fun createRecurrentMerge(lsm: LSMKeyValueStore<K, V>) = OpsBasedRecurrentJob(
-        lsm::compact,
+        lsm::compress,
         10_000,
         dispatcher
     )

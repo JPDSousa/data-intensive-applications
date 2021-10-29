@@ -20,14 +20,14 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
     override fun put(key: K, value: V) {
         when(dumped) {
             true -> throw IllegalStateException("Cannot write to a SSTable which has already been dumped.")
-            false -> memTable.put(key, value)
+            false -> memTable[key] = value
         }
     }
 
     override fun get(key: K, offset: Long?): V? = when(dumped) {
-        true -> dump.get(key, offset)
+        true -> dump[key, offset]
         // offset is ignored here. Is this problematic?
-        false -> memTable.get(key)
+        false -> memTable[key]
     }
 
     override fun delete(key: K) {
@@ -62,7 +62,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
         }
     }
 
-    override fun getWithTombstone(key: K, offset: Long?): V? = get(key)
+    override fun getWithTombstone(key: K, offset: Long?): V? = this[key]
 
     override fun isFull(): Boolean = size >= segmentThreshold
 

@@ -22,7 +22,7 @@ interface KeyValueStoreTest<K, V> {
     fun nextValue(): V
     
     @TestFactory fun `absent key`(info: TestInfo) = instances().test(info) { kv ->
-        assertNull(kv.get(nextKey()))
+        assertNull(kv[nextKey()])
         resources.close()
     }
 
@@ -30,8 +30,8 @@ interface KeyValueStoreTest<K, V> {
         val key = nextKey()
         val expected = nextValue()
 
-        kv.put(key, expected)
-        assertPossiblyArrayEquals(expected, kv.get(key))
+        kv[key] = expected
+        assertPossiblyArrayEquals(expected, kv[key])
         resources.close()
     }
 
@@ -49,10 +49,10 @@ interface KeyValueStoreTest<K, V> {
         val old = nextValue()
         val new = nextValue()
 
-        kv.put(key, old)
-        kv.put(key, new)
+        kv[key] = old
+        kv[key] = new
 
-        assertPossiblyArrayEquals(new, kv.get(key))
+        assertPossiblyArrayEquals(new, kv[key])
         resources.close()
     }
 
@@ -63,11 +63,11 @@ interface KeyValueStoreTest<K, V> {
         val key2 = nextKey()
         val value2 = nextValue()
 
-        kv.put(key1, value1)
-        kv.put(key2, value2)
+        kv[key1] = value1
+        kv[key2] = value2
         kv.delete(key1)
-        assertNull(kv.get(key1))
-        assertPossiblyArrayEquals(kv.get(key2), value2)
+        assertNull(kv[key1])
+        assertPossiblyArrayEquals(kv[key2], value2)
         resources.close()
     }
 
@@ -78,6 +78,6 @@ internal class GetAssertion<K, V>(private val kv: KeyValueStore<K, V>,
                                   private val expected: V): Executable {
 
     override fun execute() {
-        assertPossiblyArrayEquals(expected, kv.get(key))
+        assertPossiblyArrayEquals(expected, kv[key])
     }
 }

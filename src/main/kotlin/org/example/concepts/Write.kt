@@ -22,3 +22,23 @@ enum class WriteTypes {
      */
     RANDOM
 }
+
+interface ClearMixin {
+
+    @Delete(Cardinality.ZERO)
+    fun clear()
+}
+
+interface AppendMixin<T, R> {
+
+    /**
+     * Appends [entry] to the end of the data structure.
+     */
+    @Write(WriteTypes.SEQUENTIAL, Cardinality.ONE) fun append(entry: T): R
+
+    /**
+     * Appends multiple *entries* to the end of the data structure.
+     */
+    @Write(WriteTypes.SEQUENTIAL, Cardinality.ZERO2MANY) fun appendAll(entries: Sequence<T>): Sequence<R>
+
+}

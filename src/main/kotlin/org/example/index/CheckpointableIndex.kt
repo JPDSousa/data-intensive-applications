@@ -119,8 +119,8 @@ interface IndexCheckpointStoreFactory<K> {
 private class RecurrentCheckpointableIndex<K>(private val index: CheckpointableIndex<K>,
                                               private val checkpointJob: RecurrentJob): CheckpointableIndex<K> by index {
 
-    override fun putOffset(key: K, offset: Long) {
-        index.putOffset(key, offset)
+    override fun put(key: K, value: Long) {
+        index[key] = value
         checkpointJob.registerOperation()
     }
 

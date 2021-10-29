@@ -1,22 +1,19 @@
 package org.example.index
 
 import kotlinx.serialization.Serializable
+import org.example.concepts.ClearMixin
+import org.example.concepts.ImmutableDictionaryMixin
+import org.example.concepts.MutableDictionaryMixin
 
-interface Index<K> {
-
-    fun putOffset(key: K, offset: Long)
+interface Index<K>: ImmutableDictionaryMixin<K, Long>, MutableDictionaryMixin<K, Long>, ClearMixin {
 
     fun putAllOffsets(pairs: Iterable<IndexEntry<K>>) {
         pairs.forEach {
-            putOffset(it.key, it.offset)
+            this[it.key] = it.offset
         }
     }
 
-    fun getOffset(key: K): Long?
-
     fun <R> useEntries(block: (Sequence<IndexEntry<K>>) -> R): R
-
-    fun clear()
 
 }
 

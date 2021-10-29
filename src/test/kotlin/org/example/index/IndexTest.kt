@@ -18,31 +18,31 @@ interface IndexTest<K> {
         val key = nextKey()
         val expected = 1234L
 
-        index.putOffset(key, expected)
-        assertEquals(expected, index.getOffset(key))
+        index[key] = expected
+        assertEquals(expected, index[key])
     }
 
     @TestFactory fun `absent entry has no offset`(info: TestInfo) = instances().test(info) { index ->
-        assertNull(index.getOffset(nextKey()))
+        assertNull(index[nextKey()])
     }
 
     @TestFactory fun `reads do not delete entries`(info: TestInfo) = instances().test(info) { index ->
         val key = nextKey()
         val expected = 1234L
 
-        index.putOffset(key, expected)
-        assertEquals(expected, index.getOffset(key))
+        index[key] = expected
+        assertEquals(expected, index[key])
         // second read asserts that the value is still there
-        assertEquals(expected, index.getOffset(key))
+        assertEquals(expected, index[key])
     }
 
     @TestFactory fun `sequential writes act as updates`(info: TestInfo) = instances().test(info) { index ->
         val key = nextKey()
         val expected = 4321L
-        index.putOffset(key, 1234L)
-        index.putOffset(key, 4321L)
+        index[key] = 1234L
+        index[key] = 4321L
 
-        assertEquals(expected, index.getOffset(key))
+        assertEquals(expected, index[key])
     }
 
     @TestFactory fun `keys are isolated`(info: TestInfo) = instances().test(info) { index ->
@@ -50,10 +50,10 @@ interface IndexTest<K> {
         val value1 = 1234L
         val key2 = nextKey()
         val value2 = 4321L
-        index.putOffset(key1, value1)
-        index.putOffset(key2, value2)
+        index[key1] = value1
+        index[key2] = value2
 
-        assertEquals(value1, index.getOffset(key1))
-        assertEquals(value2, index.getOffset(key2))
+        assertEquals(value1, index[key1])
+        assertEquals(value2, index[key2])
     }
 }

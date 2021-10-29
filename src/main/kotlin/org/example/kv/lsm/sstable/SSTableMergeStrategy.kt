@@ -53,7 +53,7 @@ class SSTableMergeStrategy<K: Comparable<K>, V>(private val segmentFactory: Segm
                 }
             }
             if (min != null) {
-                openSegment.logKV.append(min.key, min.value)
+                openSegment.logKV.append(min)
                 if (minI >= 0) {
                     headElements[minI] = null
                 }

@@ -1,29 +1,31 @@
 package org.example.kv
 
+import org.example.DataEntry
+import org.example.concepts.AppendMixin
+import org.example.concepts.ClearMixin
+import org.example.concepts.ImmutableDictionaryMixin
+import org.example.concepts.MutableDictionaryMixin
 import org.example.log.Log
 import org.example.log.LogFactory
 import java.nio.file.Path
 
-interface KeyValueStore<K, V> {
+interface KeyValueStore<K, V>: ImmutableDictionaryMixin<K, V>, MutableDictionaryMixin<K, V>, ClearMixin
 
-    fun put(key: K, value: V)
+interface LogKeyValueStore<K, V>: TombstoneKeyValueStore<K, V>, AppendMixin<Map.Entry<K, V>, Long> {
 
-    fun putAll(entries: Map<out K, V>) {
-        entries.forEach(this::put)
+    override fun put(key: K, value: V) {
+        append(DataEntry(key, value))
     }
 
-    fun get(key: K): V?
+    fun appendAll(entries: Map<out K, V>): Sequence<Long> = when {
+        entries.isEmpty() -> emptySequence()
+        else -> {
+            val content = ArrayList<Map.Entry<K, V>>(entries.size)
+            entries.forEach { (key, value) -> content.add(DataEntry(key, value)) }
 
-    fun delete(key: K)
-
-    fun clear()
-}
-
-interface LogKeyValueStore<K, V>: TombstoneKeyValueStore<K, V> {
-
-    fun append(key: K, value: V): Long
-
-    fun appendAll(entries: Map<out K, V>): Sequence<Long>
+            appendAll(content.asSequence())
+        }
+    }
 
     fun getWithOffset(key: K): ValueWithOffset<V>?
 
@@ -48,9 +50,10 @@ interface TombstoneKeyValueStore<K, V>: KeyValueStore<K, V> {
 
     fun getWithTombstone(key: K, offset: Long? = null): V?
 
-    fun get(key: K, offset: Long?): V?
+    // TODO Offset is a Log concept, which should not be exposed here
+    operator fun get(key: K, offset: Long?): V?
 
-    override fun get(key: K) = get(key, null)
+    override fun get(key: K) = this[key, null]
 }
 
 data class ValueWithOffset<V>(val offset: Long, val value: V)

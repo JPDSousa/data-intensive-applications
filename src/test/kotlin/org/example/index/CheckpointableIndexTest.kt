@@ -33,7 +33,7 @@ internal abstract class CheckpointableIndexTest<K>: IndexTest<K> {
         val recoveredIndexed = factory.create(indexName)
 
         expected.forEach {
-            assertEquals(it.offset, recoveredIndexed.getOffset(it.key))
+            assertEquals(it.offset, recoveredIndexed[it.key])
         }
     }
 

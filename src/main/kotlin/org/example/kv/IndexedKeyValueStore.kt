@@ -1,5 +1,6 @@
 package org.example.kv
 
+import org.example.DataEntry
 import org.example.generator.Generator
 import org.example.index.CheckpointableIndexFactory
 import org.example.index.Index
@@ -14,8 +15,8 @@ private class IndexedKeyValueStore<K, V>(
 
     override fun put(key: K, value: V) {
 
-        val offset = logKV.append(key, value)
-        this.index.putOffset(key, offset)
+        val offset = append(DataEntry(key, value))
+        this.index[key] = offset
     }
 
     override fun putAll(entries: Map<out K, V>) {
@@ -33,29 +34,29 @@ private class IndexedKeyValueStore<K, V>(
         }
 
         if (offset != null) {
-            return logKV.get(key, offset)
+            return logKV[key, offset]
         }
 
         return logKV.getWithOffset(key)
-                ?.also { index.putOffset(key, it.offset) }
+                ?.also { index[key] = it.offset }
                 ?.value
     }
 
     override fun getWithTombstone(key: K, offset: Long?) = getRaw(
         key,
-        offset ?: index.getOffset(key),
+        offset ?: index[key],
         false
     )
 
     override fun get(key: K, offset: Long?) = getRaw(
         key,
-        offset ?: index.getOffset(key),
+        offset ?: index[key],
         true
     )
 
     override fun delete(key: K) {
         logKV.delete(key)
-        index.putOffset(key, tombstoneIndex)
+        index[key] = tombstoneIndex
     }
 
     override fun clear() = logKV.clear()
@@ -104,12 +105,12 @@ class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: Checkpointable
             // TODO is there a more efficient approach than rewritting the entire index
             index.clear()
             logKV.useEntries {
-                it.forEach { entry -> index.putOffset(entry.key, entry.offset) }
+                it.forEach { entry -> index[entry.key] = entry.offset }
             }
         } else if (indexLastOffset < kvLastOffset) {
             // seek the last index offset in the log and update the index from there
             logKV.useEntries(indexLastOffset) {
-                it.forEach { entry -> index.putOffset(entry.key, entry.offset) }
+                it.forEach { entry -> index[entry.key] = entry.offset }
             }
         }
 
