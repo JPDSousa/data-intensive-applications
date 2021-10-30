@@ -10,6 +10,7 @@ import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.io.path.createFile
+import kotlin.io.path.notExists
 import kotlin.streams.asSequence
 
 class Segment<K, V> (
@@ -89,6 +90,10 @@ class SegmentDirectory(private val path: Path) {
         .let { Paths.get(it) }
         .let { createFile(it) }
 
-    fun createFile(fileName: Path): Path = path.resolve(fileName)
-        .createFile()
+    fun createFile(fileName: Path, allowExisting: Boolean = false): Path = path.resolve(fileName)
+        .also {
+            if (allowExisting == it.notExists()) {
+                it.createFile()
+            }
+        }
 }

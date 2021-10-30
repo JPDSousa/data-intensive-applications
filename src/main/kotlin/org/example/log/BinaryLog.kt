@@ -1,11 +1,14 @@
 package org.example.log
 
+import org.example.readOnly
+import org.example.size
 import org.koin.core.qualifier.named
 import java.io.BufferedOutputStream
 import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
-import java.nio.file.Files.*
+import java.nio.file.Files.delete
+import java.nio.file.Files.newOutputStream
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
@@ -57,9 +60,12 @@ private class BinaryLog(private val path: Path,
         }
     }
 
-    override fun <R> useEntriesWithOffset(offset: Long, block: (Sequence<EntryWithOffset<ByteArray>>) -> R): R = when {
-        path.size() == 0L -> block(emptySequence())
-        else -> path.readOnly {
+    override fun <R> useEntriesWithOffset(
+        offset: Long,
+        block: (Sequence<EntryWithOffset<ByteArray>>) -> R
+    ): R = when(path.size() == 0L) {
+        true -> block(emptySequence())
+        false -> path.readOnly {
             if (offset > 0) {
                 it.seek(offset)
             }
@@ -130,17 +136,9 @@ private fun RandomAccessFile.readEntry(): ByteArray {
     return content
 }
 
-private fun <T> Path.readOnly(block: (RandomAccessFile) -> T): T = RandomAccessFile(toFile(), "r")
-        .use(block)
-
 private fun <T> Path.writeOnly(block: (OutputStream) -> T): T = BufferedOutputStream(
     newOutputStream(this, CREATE, APPEND))
     .use(block)
-
-private fun Path.size(): Long = when {
-    isRegularFile(this) -> readOnly { it.length() }
-    else -> 0L
-}
 
 class BinaryLogFactory: LogFactory<ByteArray> {
 

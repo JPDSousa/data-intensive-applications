@@ -1,5 +1,7 @@
 package org.example.log
 
+import org.example.readOnly
+import org.example.size
 import org.koin.core.qualifier.named
 import java.io.RandomAccessFile
 import java.lang.System.lineSeparator
@@ -11,6 +13,7 @@ import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
 import java.util.*
 import java.util.zip.CRC32
+import kotlin.io.path.deleteIfExists
 import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
@@ -64,27 +67,32 @@ private class LineLog(private val path: Path,
                     .use { stream -> stream.asSequence().map { it.stripHeader() }.let(block) }
         }
 
-        return path.randomAccessReadOnly()
-                .apply { seek(offset) }
+        return path.readOnly {
+            it.apply { seek(offset) }
                 // use buffer at this point
                 .generateStream()
-                .use { stream -> stream.asSequence().map { it.stripHeader() }.let(block) }
+                .use {
+                        stream -> stream.asSequence()
+                    .map { line -> line.stripHeader() }
+                    .let(block)
+                }
+        }
     }
 
-    override fun <T> useEntriesWithOffset(offset: Long, block: (Sequence<EntryWithOffset<String>>) -> T): T {
-
-        if(notExists(path)) {
-            return block(emptySequence())
-        }
-
-        return path.randomAccessReadOnly()
-                .apply { seek(offset) }
+    override fun <T> useEntriesWithOffset(
+        offset: Long,
+        block: (Sequence<EntryWithOffset<String>>) -> T
+    ): T = when(path.size() == 0L) {
+        true -> block(emptySequence())
+        false -> path.readOnly {
+            it.apply { seek(offset) }
                 .generateSequenceWithOffset()
                 .use { stream -> stream.asSequence().map { it.stripHeader() }.let(block) }
+        }
     }
 
     override fun clear() {
-        delete(path)
+        path.deleteIfExists()
         size = 0L
         lastOffset = 0L
     }
@@ -124,8 +132,6 @@ private class LineLog(private val path: Path,
 
 }
 
-private fun Path.randomAccessReadOnly() : RandomAccessFile = RandomAccessFile(this.toFile(), "r")
-
 internal fun RandomAccessFile.generateStream() = generateSequence { readLine() }
         .asStream()
         .onClose { this.close() }
@@ -147,11 +153,12 @@ class LineLogFactory: LogFactory<String> {
 
         val lastOffset = when (size) {
             0L -> 0L
-            else -> logPath.randomAccessReadOnly()
-                .generateSequenceWithOffset()
-                .asSequence()
-                .last()
-                .offset
+            else -> logPath.readOnly {
+                it.generateSequenceWithOffset()
+                    .asSequence()
+                    .last()
+                    .offset
+            }
         }
 
         return LineLog(logPath, UTF_8, size, lastOffset)

@@ -68,7 +68,7 @@ fun application() = koinApplication {
     modules(allModules)
 }
 
-internal open class ApplicationTest {
+internal abstract class ApplicationTest {
 
     companion object Application {
 

@@ -19,7 +19,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
 
     override fun put(key: K, value: V) {
         when(dumped) {
-            true -> throw IllegalStateException("Cannot write to a SSTable which has already been dumped.")
+            true -> throw notOnDump("write")
             false -> memTable[key] = value
         }
     }
@@ -32,14 +32,14 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
 
     override fun delete(key: K) {
         when(dumped) {
-            true -> throw IllegalStateException("Cannot delete entries to a SSTable which has already been dumped.")
+            true -> throw notOnDump("delete entries on")
             false -> memTable.delete(key)
         }
     }
 
     override fun clear() {
         when(dumped) {
-            true -> throw IllegalStateException("Cannot clear a SSTable which has already been dumped.")
+            true -> throw notOnDump("clear")
             false -> memTable.clear()
         }
     }
@@ -51,7 +51,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
     }
 
     override fun closeSegment(): Segment<K, V> = when(dumped) {
-        true -> throw IllegalStateException("Cannot dump a SSTable which has already been dumped.")
+        true -> throw notOnDump("dump")
         false -> {
             // TODO we might want to prune tombstones to optimize storage, or leave this as is to optimize reads of
             //      deleted keys
@@ -65,6 +65,9 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
     override fun getWithTombstone(key: K, offset: Long?): V? = this[key]
 
     override fun isFull(): Boolean = size >= segmentThreshold
+
+    private fun notOnDump(operationName: String)
+            = IllegalStateException("Cannot $operationName an SSTable which has already been dumped")
 
 }
 

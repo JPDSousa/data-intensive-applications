@@ -15,7 +15,14 @@ interface MutableDictionaryMixin<K, V> {
 }
 
 interface ImmutableDictionaryMixin<K, V> {
-
     operator fun get(key: K): V?
+}
 
+fun <K, V> Map<K, V>.asImmutableDictionaryMixin(): ImmutableDictionaryMixin<K, V> {
+
+    val map = this
+
+    return object: ImmutableDictionaryMixin<K, V> {
+        override fun get(key: K): V? = map[key]
+    }
 }

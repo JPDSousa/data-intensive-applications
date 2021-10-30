@@ -2,20 +2,12 @@ package org.example.kv
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import org.example.ApplicationTest
-import org.example.TestResources
 import org.example.generator.ByteArrayGenerator
 import org.example.generator.LongGenerator
 import org.example.generator.StringGenerator
 
 
-internal abstract class AbstractIndexedKeyValueStoreTest<K, V>: ApplicationTest(), KeyValueStoreTest<K, V> {
-
-    override val resources: TestResources
-        get() = application.koin.get()
-
-}
-
-internal class StringIndexedKeyValueStoreTest: AbstractIndexedKeyValueStoreTest<String, String>() {
+internal class StringIndexedKeyValueStoreTest: ApplicationTest(), KeyValueStoreTest<String, String> {
 
     private val valueGenerator = stringGenerator.generate().iterator()
 
@@ -39,7 +31,7 @@ internal class StringIndexedKeyValueStoreTest: AbstractIndexedKeyValueStoreTest<
     }
 }
 
-internal class BinaryIndexedKeyValueStoreTest: AbstractIndexedKeyValueStoreTest<Long, ByteArray>() {
+internal class BinaryIndexedKeyValueStoreTest: ApplicationTest(), KeyValueStoreTest<Long, ByteArray> {
 
     private val keyGenerator = longGenerator.generate().iterator()
 

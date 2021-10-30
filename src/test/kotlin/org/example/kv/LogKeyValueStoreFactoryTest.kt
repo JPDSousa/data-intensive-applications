@@ -20,13 +20,12 @@ interface LogKeyValueStoreFactoryTest<K, V> {
 
     fun logFactories(): Sequence<TestInstance<LogFactory<Map.Entry<K, V>>>>
 
-    @TestFactory fun `create should load file content`(info: TestInfo) = instances().flatMap { factory -> sequence {
-        for (logFactory in logFactories()) {
-            yield(TestInstance("$factory with $logFactory") {
+    @TestFactory fun `create should load file content`(info: TestInfo) = instances().flatMap { factory ->
+        logFactories().map { logFactory ->
+            TestInstance("$factory with $logFactory") {
                 FactoryCreation(factory, logFactory)
-            })
-        }
-    }}.test(info) { testInstance ->
+            }
+        }}.test(info) { testInstance ->
         val expectedEntries = nextEntries(100)
 
         val log = resources.allocateTempLogFile()

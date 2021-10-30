@@ -10,13 +10,10 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.decodeStructure
 import kotlinx.serialization.encoding.encodeStructure
-import org.example.kv.KeyValueEntry
-import java.io.IOException
+import java.io.RandomAccessFile
+import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.attribute.FileAttribute
 import java.time.Instant
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.io.path.createFile
 
 fun possiblyArrayEquals(val1: Any?, val2: Any?): Boolean {
 
@@ -64,4 +61,12 @@ class DataEntrySerializer<K, V>(private val keySerializer: KSerializer<K>,
         element("value", valueSerializer.descriptor)
     }
 
+}
+
+fun <T> Path.readOnly(block: (RandomAccessFile) -> T): T = RandomAccessFile(toFile(), "r")
+    .use(block)
+
+fun Path.size(): Long = when {
+    Files.isRegularFile(this) -> readOnly { it.length() }
+    else -> 0L
 }

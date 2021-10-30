@@ -1,10 +1,10 @@
 package org.example.kv
 
+import org.example.ApplicationTest
 import org.example.TestInstance
-import org.example.generator.StringGenerator
 import java.util.concurrent.atomic.AtomicLong
 
-internal class MemoryKeyValueStoreTest: AbstractIndexedKeyValueStoreTest<String, String>() {
+internal class MemoryKeyValueStoreTest: ApplicationTest(), KeyValueStoreTest<String, String> {
 
     private val uniqueGenerator = AtomicLong()
 
