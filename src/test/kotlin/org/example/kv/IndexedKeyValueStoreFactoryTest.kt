@@ -1,39 +1,17 @@
 package org.example.kv
 
+import org.example.ApplicationTest
 import org.example.DataEntry
 import org.example.TestInstance
 import org.example.TestResources
-import org.example.application
 import org.example.generator.StringGenerator
 import org.example.log.LogFactory
 import org.example.log.StringStringMapEntryLogFactories
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
-import org.koin.core.KoinApplication
 
-internal abstract class AbstractIndexedKeyValueStoreFactoryTest<K, V>: LogKeyValueStoreFactoryTest<K, V> {
+internal abstract class AbstractIndexedKeyValueStoreFactoryTest<K, V>: ApplicationTest(), LogKeyValueStoreFactoryTest<K, V> {
 
     override val resources
         get() = application.koin.get<TestResources>()
-
-    companion object {
-
-        @JvmStatic
-        internal lateinit var application: KoinApplication
-
-        @JvmStatic
-        @BeforeAll
-        fun createApplication() {
-            application = application()
-        }
-
-        @JvmStatic
-        @AfterAll
-        fun closeResources() {
-            application.close()
-        }
-
-    }
 }
 
 internal class StringIndexedKeyValueStoreFactoryTest: AbstractIndexedKeyValueStoreFactoryTest<String, String>() {

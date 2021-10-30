@@ -1,13 +1,12 @@
 package org.example.log
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import org.example.ApplicationTest
 import org.example.TestResources
-import org.example.application
 import org.example.generator.ByteArrayGenerator
-import org.junit.jupiter.api.AfterAll
 import java.util.concurrent.atomic.AtomicLong
 
-internal class BinaryLogTest: LogTest<ByteArray> {
+internal class BinaryLogTest: ApplicationTest(), LogTest<ByteArray> {
 
     private val valueIterator = byteArrayGenerator.generate().iterator()
 
@@ -21,25 +20,16 @@ internal class BinaryLogTest: LogTest<ByteArray> {
     companion object {
 
         @JvmStatic
-        private val application = application()
-
-        @JvmStatic
         private val byteArrayGenerator: ByteArrayGenerator = application.koin.get()
 
         @JvmStatic
         private val generator: BinaryLogs = application.koin.get(binaryLogQ)
 
-        @JvmStatic
-        @AfterAll
-        fun closeResources() {
-            application.close()
-        }
-
     }
 
 }
 
-internal class BinaryLogFactoryTest: LogFactoryTest<ByteArray> {
+internal class BinaryLogFactoryTest: ApplicationTest(), LogFactoryTest<ByteArray> {
 
     @ExperimentalSerializationApi
     override fun instances() = logFactories.generate()
@@ -56,15 +46,7 @@ internal class BinaryLogFactoryTest: LogFactoryTest<ByteArray> {
     companion object {
 
         @JvmStatic
-        private val application = application()
-
-        @JvmStatic
         private val logFactories: ByteArrayLogFactories = application.koin.get(binaryLogQ)
 
-        @JvmStatic
-        @AfterAll
-        fun closeResources() {
-            application.close()
-        }
     }
 }

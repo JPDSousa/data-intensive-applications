@@ -9,8 +9,11 @@ import org.example.index.indexModule
 import org.example.kv.kvModule
 import org.example.log.logModule
 import org.example.size.calculatorsModule
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeAll
+import org.koin.core.KoinApplication
 import org.koin.core.module.Module
 import org.koin.core.qualifier.Qualifier
 import org.koin.dsl.koinApplication
@@ -63,4 +66,26 @@ fun application() = koinApplication {
                 indexModule
 
     modules(allModules)
+}
+
+internal open class ApplicationTest {
+
+    companion object Application {
+
+        @JvmStatic
+        lateinit var application: KoinApplication
+
+        @JvmStatic
+        @BeforeAll
+        fun createApplication() {
+            application = application()
+        }
+
+        @JvmStatic
+        @AfterAll
+        fun closeResources() {
+            application.close()
+        }
+
+    }
 }

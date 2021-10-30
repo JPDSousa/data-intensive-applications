@@ -1,39 +1,17 @@
 package org.example.kv
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import org.example.ApplicationTest
 import org.example.TestResources
-import org.example.application
 import org.example.generator.ByteArrayGenerator
 import org.example.generator.LongGenerator
 import org.example.generator.StringGenerator
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
-import org.koin.core.KoinApplication
 
 
-internal abstract class AbstractIndexedKeyValueStoreTest<K, V>: KeyValueStoreTest<K, V> {
+internal abstract class AbstractIndexedKeyValueStoreTest<K, V>: ApplicationTest(), KeyValueStoreTest<K, V> {
 
     override val resources: TestResources
         get() = application.koin.get()
-
-    companion object {
-
-        @JvmStatic
-        internal lateinit var application: KoinApplication
-
-        @JvmStatic
-        @BeforeAll
-        fun createApplication() {
-            application = application()
-        }
-
-        @JvmStatic
-        @AfterAll
-        fun closeResources() {
-            application.close()
-        }
-
-    }
 
 }
 

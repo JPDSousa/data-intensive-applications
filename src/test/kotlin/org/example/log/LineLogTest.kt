@@ -1,18 +1,17 @@
 package org.example.log
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import org.example.ApplicationTest
 import org.example.TestInstance
 import org.example.TestResources
-import org.example.application
 import org.example.generator.StringGenerator
 import org.example.test
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.TestInfo
 import java.util.concurrent.atomic.AtomicLong
 
-internal class LineLogTest: LogTest<String> {
+internal class LineLogTest: ApplicationTest(), LogTest<String> {
 
     private val valueIterator = stringGenerator.generate().iterator()
 
@@ -55,25 +54,16 @@ internal class LineLogTest: LogTest<String> {
     companion object {
 
         @JvmStatic
-        private val application = application()
-
-        @JvmStatic
         private val stringGenerator: StringGenerator = application.koin.get()
 
         @JvmStatic
         private val generator: StringLogs = application.koin.get(lineLogQ)
 
-        @JvmStatic
-        @AfterAll
-        fun closeResources() {
-            application.close()
-        }
-
     }
 
 }
 
-internal class LineLogFactoryTest: LogFactoryTest<String> {
+internal class LineLogFactoryTest: ApplicationTest(), LogFactoryTest<String> {
 
     @ExperimentalSerializationApi
     override fun instances(): Sequence<TestInstance<LogFactory<String>>> = logFactories.generate()
@@ -89,15 +79,7 @@ internal class LineLogFactoryTest: LogFactoryTest<String> {
     companion object {
 
         @JvmStatic
-        private val application = application()
-
-        @JvmStatic
         private val logFactories: StringLogFactories = application.koin.get(lineLogQ)
 
-        @JvmStatic
-        @AfterAll
-        fun closeResources() {
-            application.close()
-        }
     }
 }

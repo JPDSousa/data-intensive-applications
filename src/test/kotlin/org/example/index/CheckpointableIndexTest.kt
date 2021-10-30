@@ -1,19 +1,16 @@
 package org.example.index
 
 import kotlinx.serialization.ExperimentalSerializationApi
+import org.example.ApplicationTest
 import org.example.TestInstance
-import org.example.application
 import org.example.generator.LongGenerator
 import org.example.generator.StringGenerator
 import org.example.test
-import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.TestInfo
-import org.koin.core.KoinApplication
 
-internal abstract class CheckpointableIndexTest<K>: IndexTest<K> {
+internal abstract class CheckpointableIndexTest<K>: ApplicationTest(), IndexTest<K> {
 
     abstract override fun instances(): Sequence<TestInstance<CheckpointableIndex<K>>>
 
@@ -35,25 +32,6 @@ internal abstract class CheckpointableIndexTest<K>: IndexTest<K> {
         expected.forEach {
             assertEquals(it.offset, recoveredIndexed[it.key])
         }
-    }
-
-    companion object {
-
-        @JvmStatic
-        internal lateinit var application: KoinApplication
-
-        @JvmStatic
-        @BeforeAll
-        fun createApplication() {
-            application = application()
-        }
-
-        @JvmStatic
-        @AfterAll
-        fun closeResources() {
-            application.close()
-        }
-
     }
 
 }
