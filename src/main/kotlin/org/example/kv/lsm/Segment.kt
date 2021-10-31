@@ -1,5 +1,6 @@
 package org.example.kv.lsm
 
+import org.example.concepts.LimitedSizeMixin
 import org.example.kv.LogKeyValueStore
 import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.TombstoneKeyValueStore
@@ -16,16 +17,15 @@ import kotlin.streams.asSequence
 class Segment<K, V> (
     val logKV: LogKeyValueStore<K, V>,
     private val segmentThreshold: Long
-): LogKeyValueStore<K, V> by logKV {
+): LogKeyValueStore<K, V> by logKV, LimitedSizeMixin {
 
-    fun isFull(): Boolean = size >= segmentThreshold
+    override fun isFull(): Boolean = size >= segmentThreshold
 }
 
-interface OpenSegment<K, V>: TombstoneKeyValueStore<K, V> {
+interface OpenSegment<K, V>: TombstoneKeyValueStore<K, V>, LimitedSizeMixin {
 
     fun closeSegment(): Segment<K, V>
 
-    fun isFull(): Boolean
 }
 
 interface OpenSegmentFactory<K, V> {

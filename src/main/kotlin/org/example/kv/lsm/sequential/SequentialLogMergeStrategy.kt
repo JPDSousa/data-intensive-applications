@@ -1,6 +1,7 @@
 package org.example.kv.lsm.sequential
 
 import mu.KotlinLogging
+import org.example.concepts.LimitedSizeMixin
 import org.example.kv.lsm.Segment
 import org.example.kv.lsm.SegmentFactory
 import org.example.kv.lsm.SegmentMergeStrategy
@@ -42,10 +43,12 @@ class SequentialLogMergeStrategy<K, V>(private val segmentFactory: SegmentFactor
 
 }
 
-private class CompactedLSMSegment<K, V>(private val segmentFactory: SegmentFactory<K, V>,
-                                        private val segmentThreshold: Long,
-                                        private val keySize: SizeCalculator<K>,
-                                        private val valueSize: SizeCalculator<V>) {
+private class CompactedLSMSegment<K, V>(
+    private val segmentFactory: SegmentFactory<K, V>,
+    private val segmentThreshold: Long,
+    private val keySize: SizeCalculator<K>,
+    private val valueSize: SizeCalculator<V>
+): LimitedSizeMixin {
 
     private val compactedContent = mutableMapOf<K, V>()
     private var size: Long = 0L
@@ -70,6 +73,6 @@ private class CompactedLSMSegment<K, V>(private val segmentFactory: SegmentFacto
         return compacted
     }
 
-    fun isFull() = compactedContent.size >= segmentThreshold
+    override fun isFull() = compactedContent.size >= segmentThreshold
 
 }
