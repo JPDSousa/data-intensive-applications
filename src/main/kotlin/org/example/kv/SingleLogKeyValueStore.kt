@@ -36,6 +36,10 @@ private class SingleLogKeyValueStore<K, V>(
             .map { Pair(it.offset, it.entry) }
             .findLast { possiblyArrayEquals(key, it.second.key) }?.let { ValueWithOffset(it.first, it.second.value) }
 
+    override fun contains(key: K) = log.useEntries {
+        val lastValue = it.findLastKey(key)
+        lastValue != null && !possiblyArrayEquals(lastValue, tombstone)
+    }
 
 }
 

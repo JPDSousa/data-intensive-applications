@@ -13,6 +13,8 @@ private class IndexedKeyValueStore<K, V>(
         private val tombstone: V,
         private val logKV: LogKeyValueStore<K, V>): LogKeyValueStore<K, V> by logKV {
 
+    override fun contains(key: K) = key in index && index[key] != tombstoneIndex
+
     override fun put(key: K, value: V) {
 
         val offset = append(DataEntry(key, value))

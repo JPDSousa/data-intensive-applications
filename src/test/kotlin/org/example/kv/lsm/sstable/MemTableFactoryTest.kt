@@ -6,7 +6,7 @@ import org.example.concepts.asImmutableDictionaryMixin
 import org.example.generator.ByteArrayGenerator
 import org.example.generator.LongGenerator
 import org.example.generator.StringGenerator
-import org.example.kv.GetAssertion
+import org.example.GetAssertion
 import org.example.kv.lsm.SegmentDirectories
 import org.example.kv.lsm.SegmentDirectory
 import org.example.test

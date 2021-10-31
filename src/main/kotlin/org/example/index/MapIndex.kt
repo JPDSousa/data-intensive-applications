@@ -2,7 +2,6 @@ package org.example.index
 
 import org.koin.core.qualifier.named
 import java.util.*
-import kotlin.collections.HashMap
 
 val treeIndexQ = named("treeIndex")
 val hashIndexQ = named("hashIndex")
@@ -31,6 +30,8 @@ private class MapIndex<K>(private val index: MutableMap<K, Long>): Index<K> {
     override fun delete(key: K) {
         index.remove(key)
     }
+
+    override fun contains(key: K) = key in index
 }
 
 class TreeIndexFactory<K: Comparable<K>>: IndexFactory<K> {

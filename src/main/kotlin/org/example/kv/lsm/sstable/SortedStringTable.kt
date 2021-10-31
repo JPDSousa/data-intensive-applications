@@ -14,8 +14,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
     private val dump: LogKeyValueStore<K, V>,
     private val segmentThreshold: Long,
     private var dumped: Boolean = false
-)
-    : OpenSegment<K, V> {
+) : OpenSegment<K, V> {
 
     override fun put(key: K, value: V) {
         when(dumped) {
@@ -28,6 +27,11 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
         true -> dump[key, offset]
         // offset is ignored here. Is this problematic?
         false -> memTable[key]
+    }
+
+    override fun contains(key: K): Boolean = when(dumped) {
+        true -> key in dump
+        false -> key in memTable
     }
 
     override fun delete(key: K) {

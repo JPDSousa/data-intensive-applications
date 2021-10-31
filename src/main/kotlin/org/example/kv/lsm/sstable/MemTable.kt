@@ -11,8 +11,8 @@ import org.example.size.SizeCalculator
 import java.nio.file.Paths
 import java.util.*
 
-interface MemTable<K, V>: ImmutableDictionaryMixin<K, V>, MutableDictionaryMixin<K, V>, ClearMixin,
-    Iterable<Map.Entry<K, V>> {
+interface MemTable<K, V>
+    : ImmutableDictionaryMixin<K, V>, MutableDictionaryMixin<K, V>, ClearMixin, Iterable<Map.Entry<K, V>> {
 
     val byteSize: Long
 }
@@ -48,12 +48,14 @@ private class MapMemTable<K: Comparable<K>, V>(
 
     override fun get(key: K): V? = memTable[key]
 
+    override fun contains(key: K) = key in memTable
+
 }
 
 private class WriteAheadMemTable<K, V>(
     private val memTable: MemTable<K, V>,
     private val writeAhead: TombstoneKeyValueStore<K, V>,
-): MemTable<K, V> {
+): MemTable<K, V>, ImmutableDictionaryMixin<K, V> by memTable {
 
     override val byteSize: Long
     get() = memTable.byteSize
@@ -72,8 +74,6 @@ private class WriteAheadMemTable<K, V>(
         memTable.delete(key)
         writeAhead.delete(key)
     }
-
-    override fun get(key: K): V? = memTable[key]
 
     override fun iterator() = memTable.iterator()
 }

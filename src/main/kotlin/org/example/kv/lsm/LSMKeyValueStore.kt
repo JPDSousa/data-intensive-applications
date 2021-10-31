@@ -3,6 +3,7 @@ package org.example.kv.lsm
 import kotlinx.coroutines.CoroutineDispatcher
 import mu.KotlinLogging
 import org.example.concepts.CompressMixin
+import org.example.concepts.ImmutableDictionaryMixin
 import org.example.kv.KeyValueStore
 import org.example.possiblyArrayEquals
 import org.example.recurrent.OpsBasedRecurrentJob
@@ -29,16 +30,15 @@ interface LSMKeyValueStore<K, V>: KeyValueStore<K, V>, CompressMixin {
     override fun compress()
 }
 
-private class RecurrentMergeDecorator<K, V>(private val decorated: LSMKeyValueStore<K, V>,
-                                            private val recurrentJob: RecurrentJob): LSMKeyValueStore<K, V> {
+private class RecurrentMergeDecorator<K, V>(
+    private val decorated: LSMKeyValueStore<K, V>,
+    private val recurrentJob: RecurrentJob
+): LSMKeyValueStore<K, V>, ImmutableDictionaryMixin<K, V> by decorated {
 
     override fun put(key: K, value: V) {
         decorated[key] = value
         recurrentJob.registerOperation()
     }
-
-    override fun get(key: K): V? = decorated[key]
-        .also { recurrentJob.registerOperation() }
 
     override fun delete(key: K) {
         decorated.delete(key)
@@ -75,6 +75,11 @@ private class SegmentedLSM<K, V>(private val segmentManager: SegmentManager<K, V
             closedSegments.accept(openSegment)
             openSegment = segmentManager.createOpenSegment()
         }
+    }
+
+    override fun contains(key: K): Boolean = when(key in openSegment) {
+        true -> true
+        false -> closedSegments.any { key in it }
     }
 
     override fun get(key: K): V? {

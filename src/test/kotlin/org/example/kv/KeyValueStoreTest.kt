@@ -1,14 +1,12 @@
 package org.example.kv
 
+import org.example.GetAssertion
 import org.example.TestInstance
 import org.example.assertPossiblyArrayEquals
-import org.example.concepts.ImmutableDictionaryMixin
 import org.example.test
-import org.junit.jupiter.api.Assertions.assertAll
-import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.TestInfo
-import org.junit.jupiter.api.function.Executable
 
 @Suppress("FunctionName")
 interface KeyValueStoreTest<K, V> {
@@ -20,7 +18,9 @@ interface KeyValueStoreTest<K, V> {
     fun nextValue(): V
     
     @TestFactory fun `absent key`(info: TestInfo) = instances().test(info) { kv ->
-        assertNull(kv[nextKey()])
+        val key = nextKey()
+        assertNull(kv[key])
+        assertFalse(key in kv)
     }
 
     @TestFactory fun `written value should be readable`(info: TestInfo) = instances().test(info) { kv ->
@@ -29,6 +29,7 @@ interface KeyValueStoreTest<K, V> {
 
         kv[key] = expected
         assertPossiblyArrayEquals(expected, kv[key])
+        assertTrue(key in kv)
     }
 
     @TestFactory fun `multiple keys are isolated`(info: TestInfo) = instances().test(info) { kv ->
@@ -37,6 +38,9 @@ interface KeyValueStoreTest<K, V> {
         kv.putAll(entries)
 
         assertAll(entries.map { GetAssertion(kv, it.key, it.value) })
+        for (entry in entries) {
+            assertTrue(entry.key in kv)
+        }
     }
 
     @TestFactory fun `key update`(info: TestInfo) = instances().test(info) { kv ->
@@ -48,6 +52,7 @@ interface KeyValueStoreTest<K, V> {
         kv[key] = new
 
         assertPossiblyArrayEquals(new, kv[key])
+        assertTrue(key in kv)
     }
 
     @TestFactory fun `deleted key becomes absent`(info: TestInfo) = instances().test(info) { kv ->
@@ -62,15 +67,9 @@ interface KeyValueStoreTest<K, V> {
         kv.delete(key1)
         assertNull(kv[key1])
         assertPossiblyArrayEquals(kv[key2], value2)
+        assertFalse(key1 in kv)
+        assertTrue(key2 in kv)
     }
 
 }
 
-internal class GetAssertion<K, V>(private val kv: ImmutableDictionaryMixin<K, V>,
-                                  private val key: K,
-                                  private val expected: V): Executable {
-
-    override fun execute() {
-        assertPossiblyArrayEquals(expected, kv[key])
-    }
-}

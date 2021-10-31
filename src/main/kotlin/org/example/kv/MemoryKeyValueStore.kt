@@ -6,10 +6,12 @@ class MemoryKeyValueStore<K, V>(private val map: MutableMap<K, V> = mutableMapOf
 
     override fun putAll(entries: Map<out K, V>) { map.putAll(entries) }
 
-    override fun get(key: K): V? = map[key]
+    override fun get(key: K) = map[key]
 
     override fun delete(key: K) { map.remove(key) }
 
     override fun clear() { map.clear() }
+
+    override fun contains(key: K) = key in map
 
 }

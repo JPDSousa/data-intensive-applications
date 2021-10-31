@@ -15,14 +15,10 @@ import kotlin.streams.asSequence
 
 class Segment<K, V> (
     val logKV: LogKeyValueStore<K, V>,
-    private val segmentThreshold: Long) {
+    private val segmentThreshold: Long
+): LogKeyValueStore<K, V> by logKV {
 
     fun isFull(): Boolean = size >= segmentThreshold
-
-    fun clear() = logKV.clear()
-
-    val size: Long
-    get() = logKV.size
 }
 
 interface OpenSegment<K, V>: TombstoneKeyValueStore<K, V> {

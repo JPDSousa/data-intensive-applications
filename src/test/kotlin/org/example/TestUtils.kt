@@ -2,6 +2,7 @@ package org.example
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import org.example.concepts.ImmutableDictionaryMixin
 import org.example.encoder.encoderModule
 import org.example.generator.CompositeGenerator
 import org.example.generator.primitiveGeneratorsModule
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.function.Executable
 import org.koin.core.KoinApplication
 import org.koin.core.module.Module
 import org.koin.core.qualifier.Qualifier
@@ -87,5 +89,14 @@ internal abstract class ApplicationTest {
             application.close()
         }
 
+    }
+}
+
+internal class GetAssertion<K, V>(private val kv: ImmutableDictionaryMixin<K, V>,
+                                  private val key: K,
+                                  private val expected: V): Executable {
+
+    override fun execute() {
+        assertPossiblyArrayEquals(expected, kv[key])
     }
 }

@@ -15,7 +15,10 @@ interface MutableDictionaryMixin<K, V> {
 }
 
 interface ImmutableDictionaryMixin<K, V> {
+
     operator fun get(key: K): V?
+
+    operator fun contains(key: K): Boolean
 }
 
 fun <K, V> Map<K, V>.asImmutableDictionaryMixin(): ImmutableDictionaryMixin<K, V> {
@@ -24,5 +27,7 @@ fun <K, V> Map<K, V>.asImmutableDictionaryMixin(): ImmutableDictionaryMixin<K, V
 
     return object: ImmutableDictionaryMixin<K, V> {
         override fun get(key: K): V? = map[key]
+
+        override fun contains(key: K) = key in map
     }
 }
