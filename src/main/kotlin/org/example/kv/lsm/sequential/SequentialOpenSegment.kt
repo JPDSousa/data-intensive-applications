@@ -1,5 +1,6 @@
 package org.example.kv.lsm.sequential
 
+import org.example.concepts.SerializationMixin
 import org.example.kv.LogKeyValueStore
 import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.TombstoneKeyValueStore
@@ -13,11 +14,13 @@ import java.util.concurrent.atomic.AtomicInteger
 private class SequentialOpenSegment<K, V>(
     private val keyValueStore: LogKeyValueStore<K, V>,
     private val segmentThreshold: Long = 1024L * 1024L
-): OpenSegment<K, V>, TombstoneKeyValueStore<K, V> by keyValueStore {
+): OpenSegment<K, V>,
+    TombstoneKeyValueStore<K, V> by keyValueStore,
+    SerializationMixin by keyValueStore {
 
     override fun closeSegment(): Segment<K, V> = Segment(keyValueStore, segmentThreshold)
 
-    override fun isFull(): Boolean = keyValueStore.size >= segmentThreshold
+    override fun isFull(): Boolean = byteLength >= segmentThreshold
 }
 
 class SequentialOpenSegmentFactory<K, V>(

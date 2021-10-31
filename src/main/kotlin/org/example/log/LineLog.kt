@@ -20,18 +20,20 @@ import kotlin.streams.asStream
 val lineLogQ = named("lineLog")
 
 // TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
-private class LineLog(private val path: Path,
-                      private val charset: Charset,
-                      override var size: Long,
-                      override var lastOffset: Long): Log<String> {
+private class LineLog(
+    private val path: Path,
+    private val charset: Charset,
+    override var byteLength: Long,
+    override var lastOffset: Long
+): Log<String> {
 
     override fun append(entry: String): Long {
 
-        lastOffset = size
+        lastOffset = byteLength
 
         val line = entry.prependHeader()
         write(path, listOf(line), charset, CREATE, APPEND)
-        size += line.entrySize()
+        byteLength += line.entrySize()
 
         return lastOffset
     }
@@ -43,7 +45,7 @@ private class LineLog(private val path: Path,
         }
 
         val offsets: MutableList<Long> = LinkedList()
-        offsets.add(size)
+        offsets.add(byteLength)
 
         entries.map { it.prependHeader() }
             .onEach {
@@ -51,7 +53,7 @@ private class LineLog(private val path: Path,
                 offsets.add(last + it.entrySize())
             }.let { write(path, it.asIterable(), charset, CREATE, APPEND) }
 
-        size = offsets.last()
+        byteLength = offsets.last()
 
         return offsets.subList(0, offsets.size - 1).asSequence()
     }
@@ -93,7 +95,7 @@ private class LineLog(private val path: Path,
 
     override fun clear() {
         path.deleteIfExists()
-        size = 0L
+        byteLength = 0L
         lastOffset = 0L
     }
 

@@ -4,6 +4,7 @@ import mu.KotlinLogging
 import org.example.concepts.ClearMixin
 import org.example.concepts.ImmutableDictionaryMixin
 import org.example.concepts.MutableDictionaryMixin
+import org.example.concepts.SerializationMixin
 import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.TombstoneKeyValueStore
 import org.example.kv.lsm.SegmentDirectory
@@ -12,10 +13,11 @@ import java.nio.file.Paths
 import java.util.*
 
 interface MemTable<K, V>
-    : ImmutableDictionaryMixin<K, V>, MutableDictionaryMixin<K, V>, ClearMixin, Iterable<Map.Entry<K, V>> {
-
-    val byteSize: Long
-}
+    : ImmutableDictionaryMixin<K, V>,
+    MutableDictionaryMixin<K, V>,
+    ClearMixin,
+    Iterable<Map.Entry<K, V>>,
+    SerializationMixin
 
 private class MapMemTable<K: Comparable<K>, V>(
     private val memTable: SortedMap<K, V>,
@@ -23,26 +25,26 @@ private class MapMemTable<K: Comparable<K>, V>(
     private val valueSize: SizeCalculator<V>,
 ): MemTable<K, V> {
 
-    override var byteSize: Long = 0L
+    override var byteLength: Long = 0L
 
     override fun clear() {
         memTable.clear()
-        byteSize = 0L
+        byteLength = 0L
     }
 
     override fun iterator() = memTable.iterator()
 
     override fun put(key: K, value: V) {
         memTable[key] = value
-        byteSize += keySize.sizeOf(key)
-        byteSize += valueSize.sizeOf(value)
+        byteLength += keySize.sizeOf(key)
+        byteLength += valueSize.sizeOf(value)
     }
 
     override fun delete(key: K) {
         val oldValue = memTable.remove(key)
-        byteSize -= keySize.sizeOf(key)
+        byteLength -= keySize.sizeOf(key)
         if (oldValue != null) {
-            byteSize -= valueSize.sizeOf(oldValue)
+            byteLength -= valueSize.sizeOf(oldValue)
         }
     }
 
@@ -55,10 +57,10 @@ private class MapMemTable<K: Comparable<K>, V>(
 private class WriteAheadMemTable<K, V>(
     private val memTable: MemTable<K, V>,
     private val writeAhead: TombstoneKeyValueStore<K, V>,
-): MemTable<K, V>, ImmutableDictionaryMixin<K, V> by memTable {
-
-    override val byteSize: Long
-    get() = memTable.byteSize
+): MemTable<K, V>,
+    ImmutableDictionaryMixin<K, V> by memTable,
+    SerializationMixin by memTable,
+    Iterable<Map.Entry<K, V>> by memTable {
 
     override fun put(key: K, value: V) {
         memTable[key] = value
@@ -74,8 +76,6 @@ private class WriteAheadMemTable<K, V>(
         memTable.delete(key)
         writeAhead.delete(key)
     }
-
-    override fun iterator() = memTable.iterator()
 }
 
 class MemTableFactory<K: Comparable<K>, V>(private val kvFactory: LogKeyValueStoreFactory<K, V>,

@@ -1,13 +1,17 @@
 package org.example.log
 
+import org.example.concepts.ClearMixin
+import org.example.concepts.SerializationMixin
 import org.example.encoder.Encoder
 import org.koin.core.qualifier.named
 import java.nio.file.Path
 
 val logEncoderQ = named("logEncoder")
 
-class LogEncoder<S, T>(private val log: Log<T>,
-                       private val encoder: Encoder<S, T>): Log<S> {
+class LogEncoder<S, T>(
+    private val log: Log<T>,
+    private val encoder: Encoder<S, T>
+): Log<S>, SerializationMixin by log, ClearMixin by log {
 
     override fun append(entry: S) = log.append(encoder.encode(entry))
 
@@ -21,11 +25,6 @@ class LogEncoder<S, T>(private val log: Log<T>,
             = log.useEntriesWithOffset { sequence ->
         block(sequence.map { EntryWithOffset(it.offset, encoder.decode(it.entry)) })
     }
-
-    override val size: Long
-    get() = log.size
-
-    override fun clear() = log.clear()
 
     override val lastOffset: Long
         get() = log.lastOffset

@@ -1,17 +1,17 @@
 package org.example.kv
 
 import org.example.DataEntry
-import org.example.concepts.AppendMixin
-import org.example.concepts.ClearMixin
-import org.example.concepts.ImmutableDictionaryMixin
-import org.example.concepts.MutableDictionaryMixin
+import org.example.concepts.*
 import org.example.log.Log
 import org.example.log.LogFactory
 import java.nio.file.Path
 
 interface KeyValueStore<K, V>: ImmutableDictionaryMixin<K, V>, MutableDictionaryMixin<K, V>, ClearMixin
 
-interface LogKeyValueStore<K, V>: TombstoneKeyValueStore<K, V>, AppendMixin<Map.Entry<K, V>, Long> {
+interface SerializableKeyValueStore<K, V>: KeyValueStore<K, V>, SerializationMixin
+
+interface LogKeyValueStore<K, V>
+    : TombstoneKeyValueStore<K, V>, AppendMixin<Map.Entry<K, V>, Long>, SerializationMixin {
 
     override fun put(key: K, value: V) {
         append(DataEntry(key, value))
@@ -38,8 +38,8 @@ interface LogKeyValueStore<K, V>: TombstoneKeyValueStore<K, V>, AppendMixin<Map.
 
     val log: Log<Map.Entry<K, V>>
 
-    val size: Long
-        get() = log.size
+    override val byteLength: Long
+        get() = log.byteLength
 
     val lastOffset: Long
         get() = log.lastOffset

@@ -17,7 +17,7 @@ interface LogTest<T> {
     fun nextValue(): T
 
     @TestFactory fun `append on empty file should return 0`(info: TestInfo) = instances().test(info) { log ->
-        val initialSize = log.size
+        val initialSize = log.byteLength
         assertEquals(initialSize, log.append(nextValue()))
     }
 
@@ -58,7 +58,7 @@ interface LogTest<T> {
     @TestFactory fun `clear removes all entries`(info: TestInfo) = instances().test(info) { log ->
 
         log.clear()
-        assertEquals(0L, log.size)
+        assertEquals(0L, log.byteLength)
         assertTrue(log.useEntries { it.toList() }.isEmpty())
     }
 

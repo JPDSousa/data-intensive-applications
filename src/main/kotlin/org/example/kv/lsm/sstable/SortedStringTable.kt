@@ -1,5 +1,6 @@
 package org.example.kv.lsm.sstable
 
+import org.example.concepts.SerializationMixin
 import org.example.kv.LogKeyValueStore
 import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.lsm.OpenSegment
@@ -14,7 +15,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
     private val dump: LogKeyValueStore<K, V>,
     private val segmentThreshold: Long,
     private var dumped: Boolean = false
-) : OpenSegment<K, V> {
+) : OpenSegment<K, V>, SerializationMixin {
 
     override fun put(key: K, value: V) {
         when(dumped) {
@@ -48,10 +49,10 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
         }
     }
 
-    private val size: Long
+    override val byteLength: Long
     get() = when (dumped) {
-        true -> dump.size
-        false -> memTable.byteSize
+        true -> dump.byteLength
+        false -> memTable.byteLength
     }
 
     override fun closeSegment(): Segment<K, V> = when(dumped) {
@@ -68,7 +69,7 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
 
     override fun getWithTombstone(key: K, offset: Long?): V? = this[key]
 
-    override fun isFull(): Boolean = size >= segmentThreshold
+    override fun isFull(): Boolean = byteLength >= segmentThreshold
 
     private fun notOnDump(operationName: String)
             = IllegalStateException("Cannot $operationName an SSTable which has already been dumped")

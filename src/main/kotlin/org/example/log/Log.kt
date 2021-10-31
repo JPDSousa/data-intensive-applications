@@ -1,8 +1,8 @@
 package org.example.log
 
 import org.example.concepts.*
-import org.example.concepts.Cardinality.*
-import org.example.concepts.WriteTypes.SEQUENTIAL
+import org.example.concepts.Cardinality.ONE
+import org.example.concepts.Cardinality.ZERO2MANY
 import java.nio.file.Path
 
 /**
@@ -12,13 +12,11 @@ import java.nio.file.Path
  *
  * As an [AppendMixin], the [Long] type refers to the start offset in which a given entry is appended.
  */
-interface Log<T>: AppendMixin<T, Long>, ClearMixin {
+interface Log<T>: AppendMixin<T, Long>, ClearMixin, SerializationMixin {
 
     @Read(ZERO2MANY) fun <R> useEntries(offset: Long = 0, block: (Sequence<T>) -> R): R
 
     @Read(ZERO2MANY) fun <R> useEntriesWithOffset(offset: Long = 0, block: (Sequence<EntryWithOffset<T>>) -> R): R
-
-    @Read(ONE) val size: Long
 
     @Read(ONE) val lastOffset: Long
 

@@ -19,7 +19,7 @@ class Segment<K, V> (
     private val segmentThreshold: Long
 ): LogKeyValueStore<K, V> by logKV, LimitedSizeMixin {
 
-    override fun isFull(): Boolean = size >= segmentThreshold
+    override fun isFull(): Boolean = byteLength >= segmentThreshold
 }
 
 interface OpenSegment<K, V>: TombstoneKeyValueStore<K, V>, LimitedSizeMixin {

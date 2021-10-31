@@ -18,15 +18,15 @@ val binaryLogQ = named("binarylog")
 
 private class BinaryLog(private val path: Path,
                         override var lastOffset: Long,
-                        override var size: Long): Log<ByteArray> {
+                        override var byteLength: Long): Log<ByteArray> {
 
     override fun append(entry: ByteArray): Long {
 
-        lastOffset = size
+        lastOffset = byteLength
 
         path.writeOnly { it.writeEntry(entry) }
 
-        size += headerSize + entry.size
+        byteLength += headerSize + entry.size
 
         return lastOffset
     }
@@ -40,17 +40,17 @@ private class BinaryLog(private val path: Path,
         return path.writeOnly { stream ->
             entries.map { entry ->
                 // 'size' is stale at this point, containing the lastOffset
-                lastOffset = size
+                lastOffset = byteLength
 
                 stream.writeEntry(entry)
 
-                size += headerSize + entry.size
+                byteLength += headerSize + entry.size
                 return@map lastOffset
             }.toList().asSequence()
         }
     }
 
-    override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R = when (size) {
+    override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R = when (byteLength) {
         0L -> block(emptySequence())
         else -> path.readOnly {
             if (offset > 0) {
@@ -75,7 +75,7 @@ private class BinaryLog(private val path: Path,
 
     override fun clear() {
         delete(path)
-        size = 0L
+        byteLength = 0L
         lastOffset = 0L
     }
 
