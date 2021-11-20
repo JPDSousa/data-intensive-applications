@@ -17,6 +17,13 @@ private class SingleLogKeyValueStore<K, V>(
 
     override fun get(key: K): V? = this[key, 0]
 
+    override fun append(entry: Map.Entry<K, V>): Long {
+        require(!possiblyArrayEquals(entry.value, tombstone)) {
+            "Value $tombstone is reserved, and cannot be inserted."
+        }
+        return log.append(entry)
+    }
+
     override fun delete(key: K) {
         log.append(DataEntry(key, tombstone))
     }

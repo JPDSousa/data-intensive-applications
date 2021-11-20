@@ -1,4 +1,4 @@
-import org.gradle.api.file.DuplicatesStrategy.*
+import org.gradle.api.file.DuplicatesStrategy.WARN
 
 plugins {
     val kotlinVersion = "1.5.31"
@@ -27,11 +27,17 @@ dependencies {
     testImplementation("io.insert-koin:koin-core:$koinVersion")
 
     // JUnit dependencies
-    val junitVersion = "5.7.1"
+    val junitVersion = "5.8.1"
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+
+    // Kotest dependencies
+    val kotestVersion = "5.0.0.RC"
+    testImplementation("io.kotest:kotest-runner-junit5:$kotestVersion")
+    testImplementation("io.kotest:kotest-property:$kotestVersion")
+
     testImplementation("org.apache.commons:commons-math3:3.4")
 }
 
@@ -52,5 +58,7 @@ tasks {
     }
     test {
         useJUnitPlatform()
+        jvmArgs = listOf("-XX:+HeapDumpOnOutOfMemoryError")
+        maxHeapSize = "512m"
     }
 }

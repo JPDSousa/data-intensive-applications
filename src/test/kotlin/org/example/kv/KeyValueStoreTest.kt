@@ -1,74 +1,104 @@
 package org.example.kv
 
-import org.example.GetAssertion
+import io.kotest.common.DelicateKotest
+import io.kotest.core.spec.style.shouldSpec
+import io.kotest.matchers.nulls.beNull
+import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.distinct
+import io.kotest.property.arbitrary.next
+import io.kotest.property.checkAll
 import org.example.TestInstance
-import org.example.assertPossiblyArrayEquals
-import org.example.test
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.TestInfo
 
-@Suppress("FunctionName")
-interface KeyValueStoreTest<K, V> {
+@DelicateKotest
+fun <K, V> keyValueStoreTests(
+    name: String,
+    config: PropTestConfig,
+    gen: Gen<TestInstance<KeyValueStore<K, V>>>,
+    keyGen: Arb<K>,
+    valueGen: Arb<V>,
+) = shouldSpec {
 
-    fun instances(): Sequence<TestInstance<KeyValueStore<K, V>>>
+    context(name) {
 
-    fun nextKey(): K
+        should("absent key") {
+            checkAll(config, gen) { instanceSpec ->
+                val kv = instanceSpec.instance()
+                val key = keyGen.next()
 
-    fun nextValue(): V
-    
-    @TestFactory fun `absent key`(info: TestInfo) = instances().test(info) { kv ->
-        val key = nextKey()
-        assertNull(kv[key])
-        assertFalse(key in kv)
-    }
-
-    @TestFactory fun `written value should be readable`(info: TestInfo) = instances().test(info) { kv ->
-        val key = nextKey()
-        val expected = nextValue()
-
-        kv[key] = expected
-        assertPossiblyArrayEquals(expected, kv[key])
-        assertTrue(key in kv)
-    }
-
-    @TestFactory fun `multiple keys are isolated`(info: TestInfo) = instances().test(info) { kv ->
-        val entries = (0..5).associate { Pair(nextKey(), nextValue()) }
-
-        kv.putAll(entries)
-
-        assertAll(entries.map { GetAssertion(kv, it.key, it.value) })
-        for (entry in entries) {
-            assertTrue(entry.key in kv)
+                kv[key] should beNull()
+                (key in kv) shouldBe false
+            }
         }
-    }
 
-    @TestFactory fun `key update`(info: TestInfo) = instances().test(info) { kv ->
-        val key = nextKey()
-        val old = nextValue()
-        val new = nextValue()
+        should("written value should be readable") {
+            checkAll(config, gen) { instanceSpec ->
+                val kv = instanceSpec.instance()
+                val key = keyGen.next()
+                val expected = valueGen.next()
 
-        kv[key] = old
-        kv[key] = new
+                kv[key] = expected
+                kv[key] shouldBe expected
+                (key in kv) shouldBe true
+            }
+        }
 
-        assertPossiblyArrayEquals(new, kv[key])
-        assertTrue(key in kv)
-    }
+        should("multiple keys are isolated") {
+            checkAll(config, gen) { instanceSpec ->
+                val kv = instanceSpec.instance()
 
-    @TestFactory fun `deleted key becomes absent`(info: TestInfo) = instances().test(info) { kv ->
-        val key1 = nextKey()
-        val value1 = nextValue()
+                val entries = (0..5).associate { Pair(keyGen.next(), valueGen.next()) }
 
-        val key2 = nextKey()
-        val value2 = nextValue()
+                kv.putAll(entries)
 
-        kv[key1] = value1
-        kv[key2] = value2
-        kv.delete(key1)
-        assertNull(kv[key1])
-        assertPossiblyArrayEquals(kv[key2], value2)
-        assertFalse(key1 in kv)
-        assertTrue(key2 in kv)
+                for (entry in entries) {
+                    kv[entry.key] shouldBe entry.value
+                    (entry.key in kv) shouldBe true
+                }
+            }
+        }
+
+        should("key update") {
+            checkAll(config, gen) { instanceSpec ->
+                val kv = instanceSpec.instance()
+
+                val key = keyGen.next()
+                val old = valueGen.next()
+                val new = valueGen.next()
+
+                kv[key] = old
+                kv[key] = new
+
+                kv[key] shouldBe new
+                (key in kv) shouldBe true
+            }
+        }
+
+        should("deleted key becomes absent") {
+            checkAll(config, gen) { instanceSpec ->
+                val kv = instanceSpec.instance()
+
+                val distinctKeyGen = keyGen.distinct()
+                val key1 = distinctKeyGen.next()
+                val value1 = valueGen.next()
+
+                val key2 = distinctKeyGen.next()
+                val value2 = valueGen.next()
+
+                kv[key1] = value1
+                kv[key2] = value2
+                kv.delete(key1)
+
+                kv[key1] should beNull()
+                kv[key2] shouldBe value2
+                (key1 in kv) shouldBe false
+                (key2 in kv) shouldBe true
+            }
+        }
+
     }
 
 }

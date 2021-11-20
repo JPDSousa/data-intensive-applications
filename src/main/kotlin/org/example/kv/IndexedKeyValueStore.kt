@@ -61,7 +61,10 @@ private class IndexedKeyValueStore<K, V>(
         index[key] = tombstoneIndex
     }
 
-    override fun clear() = logKV.clear()
+    override fun clear() {
+        index.clear()
+        logKV.clear()
+    }
 
     private fun Set<K>.zipIndex(other: Sequence<Long>): Iterable<IndexEntry<K>> {
 

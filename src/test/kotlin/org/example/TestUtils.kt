@@ -1,5 +1,6 @@
 package org.example
 
+import io.kotest.core.TestConfiguration
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import org.example.concepts.ImmutableDictionaryMixin
@@ -53,6 +54,15 @@ inline fun <reified T, reified G: TestGenerator<T>> Module.mergeGenerators(
         )
     }
 }
+
+fun TestConfiguration.bootstrapApplication() = application()
+    .also {
+        autoClose(object: AutoCloseable {
+            override fun close() {
+                it.close()
+            }
+        })
+    }
 
 fun application() = koinApplication {
 

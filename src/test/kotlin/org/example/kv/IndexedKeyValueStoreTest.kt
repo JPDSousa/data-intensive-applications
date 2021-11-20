@@ -1,65 +1,43 @@
 package org.example.kv
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import org.example.ApplicationTest
-import org.example.generator.ByteArrayGenerator
-import org.example.generator.LongGenerator
-import org.example.generator.StringGenerator
+import io.kotest.common.DelicateKotest
+import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.property.Arb
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.*
+import org.example.bootstrapApplication
+import org.example.possiblyArrayEquals
 
+@DelicateKotest
+internal class StringIndexedKeyValueStoreSpec: ShouldSpec({
 
-internal class StringIndexedKeyValueStoreTest: ApplicationTest(), KeyValueStoreTest<String, String> {
+    val application = bootstrapApplication()
+    val kvs: StringStringKeyValueStores = application.koin.get()
 
-    private val valueGenerator = stringGenerator.generate().iterator()
+    include(keyValueStoreTests(
+        StringIndexedKeyValueStoreSpec::class.simpleName!!,
+        PropTestConfig(maxFailure = 3, iterations = 300),
+        kvs.toArb(),
+        Arb.string(),
+        Arb.string()
+            // TODO fix the harcoded filter. This should be specific to the TestInstance we're using
+            .filterNot { it == Tombstone.string },
+    ))
+})
 
-    @ExperimentalSerializationApi
-    override fun instances() = kvs.generate()
+@DelicateKotest
+internal class BinaryIndexedKeyValueStoreSpec: ShouldSpec({
 
-    override fun nextKey() = when {
-        valueGenerator.hasNext() -> valueGenerator.next()
-        else -> throw NoSuchElementException("No more values!")
-    }
+    val application = bootstrapApplication()
+    val kvs: ByteArrayKeyValueStores = application.koin.get()
 
-    override fun nextValue() = nextKey()
-
-    companion object {
-
-        @JvmStatic
-        private val kvs: StringStringKeyValueStores = application.koin.get()
-
-        @JvmStatic
-        private val stringGenerator: StringGenerator = application.koin.get()
-    }
-}
-
-internal class BinaryIndexedKeyValueStoreTest: ApplicationTest(), KeyValueStoreTest<Long, ByteArray> {
-
-    private val keyGenerator = longGenerator.generate().iterator()
-
-    private val valueGenerator = byteGenerator.generate().iterator()
-
-    @ExperimentalSerializationApi
-    override fun instances() = kvs.generate()
-
-    override fun nextKey() = when {
-        keyGenerator.hasNext() -> keyGenerator.next()
-        else -> throw NoSuchElementException("No more values!")
-    }
-
-    override fun nextValue() = when {
-        valueGenerator.hasNext() -> valueGenerator.next()
-        else -> throw NoSuchElementException("No more values!")
-    }
-
-    companion object {
-
-        @JvmStatic
-        private val kvs: ByteArrayKeyValueStores = application.koin.get()
-
-        @JvmStatic
-        private val byteGenerator: ByteArrayGenerator = application.koin.get()
-
-        @JvmStatic
-        private val longGenerator: LongGenerator = application.koin.get()
-    }
-
-}
+    include(keyValueStoreTests(
+        BinaryIndexedKeyValueStoreSpec::class.simpleName!!,
+        PropTestConfig(maxFailure = 3, iterations = 300),
+        kvs.toArb(),
+        Arb.long(),
+        Arb.byteArray(Arb.int(0..100), Arb.byte())
+            // TODO fix the harcoded filter. This should be specific to the TestInstance we're using
+            .filterNot { possiblyArrayEquals(it, Tombstone.byte) },
+    ))
+})
