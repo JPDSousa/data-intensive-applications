@@ -1,126 +1,83 @@
 package org.example.kv.lsm.sstable
 
-import org.example.ApplicationTest
+import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.core.spec.style.shouldSpec
+import io.kotest.matchers.maps.shouldHaveSize
+import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.*
+import io.kotest.property.checkAll
 import org.example.TestInstance
-import org.example.concepts.asImmutableDictionaryMixin
-import org.example.generator.ByteArrayGenerator
-import org.example.generator.LongGenerator
-import org.example.generator.StringGenerator
-import org.example.GetAssertion
+import org.example.bootstrapApplication
+import org.example.kv.Tombstone
 import org.example.kv.lsm.SegmentDirectories
 import org.example.kv.lsm.SegmentDirectory
-import org.example.test
-import org.junit.jupiter.api.Assertions.assertAll
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.TestInfo
+import org.example.possiblyArrayEquals
 
-private data class FactoryCreation<K: Comparable<K>, V>(
-    val memTableFactory: TestInstance<MemTableFactory<K, V>>,
-    val segmentDirectory: TestInstance<SegmentDirectory>
-)
+fun <K: Comparable<K>, V> memTableFactoryTests(
+    gen: Gen<TestInstance<MemTableFactory<K, V>>>,
+    segmentDirectories: Gen<TestInstance<SegmentDirectory>>,
+    keyGen: Arb<K>,
+    valueGen: Arb<V>,
+    config: PropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100),
+) = shouldSpec {
 
-interface MemTableFactoryTest<K: Comparable<K>, V> {
+    should("be recoverable") {
+        checkAll(config, gen, segmentDirectories) { memTableSpec, segmentDirectorySpec ->
 
-    fun nextKey(): K
+            val segmentId = 123
+            val expectedEntries = (0..100).associate { Pair(keyGen.next(), valueGen.next()) }
 
-    fun nextValue(): V
+            val segmentDirectory = segmentDirectorySpec.instance()
+            val memTableFactory = memTableSpec.instance()
 
-    fun instances(): Sequence<TestInstance<MemTableFactory<K, V>>>
+            val memTable = memTableFactory.createMemTable(segmentDirectory, segmentId)
+            memTable.putAll(expectedEntries)
 
-    fun segmentDirectories(): Sequence<TestInstance<SegmentDirectory>>
+            val recoveredMemTable = memTableFactory.createMemTable(segmentDirectory, segmentId)
 
-    @TestFactory fun `memTable should be recoverable`(info: TestInfo) = instances().flatMap { memTableFactory ->
-        segmentDirectories().map { segmentDirectory ->
-            TestInstance("Tuple($memTableFactory, $segmentDirectory)") {
-                FactoryCreation(memTableFactory, segmentDirectory)
+            val actualEntries = recoveredMemTable.associate { (key, value) -> Pair(key, value) }
+
+            // TODO aggregate this in custom matcher
+            actualEntries shouldHaveSize expectedEntries.size
+            for (expectedEntry in expectedEntries) {
+                actualEntries[expectedEntry.key] shouldBe expectedEntry.value
+                (expectedEntry.key in actualEntries) shouldBe true
             }
         }
-    }.test(info) { factory ->
-
-        val segmentId = 123
-        val expectedEntries = (0..100).associate { Pair(nextKey(), nextValue()) }
-
-        val segmentDirectory = factory.segmentDirectory.instance()
-        val memTableFactory = factory.memTableFactory.instance()
-
-        val memTable = memTableFactory.createMemTable(segmentDirectory, segmentId)
-        memTable.putAll(expectedEntries)
-
-        val recoveredMemTable = memTableFactory.createMemTable(segmentDirectory, segmentId)
-
-        val actualEntries = recoveredMemTable.associate { (key, value) -> Pair(key, value) }
-
-        assertEquals(expectedEntries.size, actualEntries.size)
-        assertAll(expectedEntries.map { GetAssertion(actualEntries.asImmutableDictionaryMixin(), it.key, it.value) })
-    }
-
-}
-
-internal abstract class AbstractMemTableFactoryTest<K: Comparable<K>, V>: ApplicationTest(), MemTableFactoryTest<K, V> {
-
-    override fun segmentDirectories() = segmentDirectories.generate()
-
-    companion object {
-
-        @JvmStatic
-        private val segmentDirectories: SegmentDirectories = application.koin.get()
-
     }
 }
 
-internal class StringStringMemTableFactoryTest: AbstractMemTableFactoryTest<String, String>() {
+internal class StringStringMemTableFactorySpec: ShouldSpec({
 
-    private val keyGenerator = stringGenerator.generate().iterator()
+    val application = bootstrapApplication()
+    val factories: StringStringMemTableFactories = application.koin.get()
+    val segmentDirectories: SegmentDirectories = application.koin.get()
 
-    override fun nextKey() = when {
-        keyGenerator.hasNext() -> keyGenerator.next()
-        else -> throw NoSuchElementException("No more values!")
-    }
+    include(memTableFactoryTests(
+        factories.toArb(),
+        segmentDirectories.toArb(),
+        Arb.string(),
+        Arb.string()
+            // TODO fix the harcoded filter. This should be specific to the TestInstance we're using
+            .filterNot { it == Tombstone.string },
+    ))
+})
 
-    override fun nextValue() = nextKey()
+internal class LongByteArrayMemTableFactorySpec: ShouldSpec({
 
-    override fun instances() = factories.generate()
+    val application = bootstrapApplication()
+    val factories: LongByteArrayMemTableFactories = application.koin.get()
+    val segmentDirectories: SegmentDirectories = application.koin.get()
 
-    companion object {
-
-        @JvmStatic
-        private val stringGenerator: StringGenerator = application.koin.get()
-
-        @JvmStatic
-        private val factories: StringStringMemTableFactories = application.koin.get()
-
-    }
-}
-
-internal class LongByteArrayMemTableFactoryTest: AbstractMemTableFactoryTest<Long, ByteArray>() {
-
-    private val keyGenerator = longGenerator.generate().iterator()
-    private val valueGenerator = byteArrayGenerator.generate().iterator()
-
-    override fun nextKey() = when {
-        keyGenerator.hasNext() -> keyGenerator.next()
-        else -> throw NoSuchElementException("No more values!")
-    }
-
-    override fun nextValue() = when {
-        valueGenerator.hasNext() -> valueGenerator.next()
-        else -> throw NoSuchElementException("No more values!")
-    }
-
-    override fun instances() = factories.generate()
-
-    companion object {
-
-        @JvmStatic
-        private val longGenerator: LongGenerator = application.koin.get()
-
-        @JvmStatic
-        private val byteArrayGenerator: ByteArrayGenerator = application.koin.get()
-
-        @JvmStatic
-        private val factories: LongByteArrayMemTableFactories = application.koin.get()
-
-    }
-
-}
+    include(memTableFactoryTests(
+        factories.toArb(),
+        segmentDirectories.toArb(),
+        Arb.long(),
+        Arb.byteArray(Arb.int(0..100), Arb.byte())
+            // TODO fix the harcoded filter. This should be specific to the TestInstance we're using
+            .filterNot { possiblyArrayEquals(it, Tombstone.byte) },
+    ))
+})
