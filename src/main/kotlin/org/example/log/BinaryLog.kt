@@ -14,7 +14,7 @@ import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
 import java.util.zip.CRC32
 
-val binaryLogQ = named("binarylog")
+val binaryLogQ = named(BinaryLog::class.qualifiedName!!)
 
 private class BinaryLog(private val path: Path,
                         override var lastOffset: Long,

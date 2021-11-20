@@ -7,7 +7,7 @@ import io.kotest.property.arbitrary.map
 import io.kotest.property.arbitrary.merge
 import kotlinx.serialization.ExperimentalSerializationApi
 
-val defaultPropTestConfig = PropTestConfig(maxFailure = 3, iterations = 200)
+val defaultPropTestConfig = PropTestConfig(maxFailure = 3, iterations = 2000)
 
 fun PropTestConfig.randomSource() = seed?.random() ?: RandomSource.default()
 

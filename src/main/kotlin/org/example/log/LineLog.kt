@@ -17,7 +17,7 @@ import kotlin.io.path.deleteIfExists
 import kotlin.streams.asSequence
 import kotlin.streams.asStream
 
-val lineLogQ = named("lineLog")
+val lineLogQ = named(LineLog::class.qualifiedName!!)
 
 // TODO if the write ratio is too high, use a buffered writer to avoid I/O calls. The buffer is then flushed upon a read
 private class LineLog(

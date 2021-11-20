@@ -42,6 +42,8 @@ fun application() = koinApplication {
     modules(allModules)
 }
 
+inline fun <reified G: Any> Scope.getMultiple(qualifiers: Iterable<Qualifier>): List<G> = qualifiers.map { get(it) }
+
 internal inline fun <T, reified G: GenWrapper<T>> Scope.getAllGen(qualifiers: Iterable<Qualifier>) = qualifiers.map {
     get<G>(it).gen
 }.reduce { acc, gen -> acc.merge(gen) }

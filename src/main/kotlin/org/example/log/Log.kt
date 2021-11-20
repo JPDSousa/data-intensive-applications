@@ -12,7 +12,8 @@ import java.nio.file.Path
  *
  * As an [AppendMixin], the [Long] type refers to the start offset in which a given entry is appended.
  */
-interface Log<T>: AppendMixin<T, Long>, ClearMixin, SerializationMixin {
+// TODO if a log is clearer, it stops being append-only
+interface Log<T>: AppendMixin<T, Long>, ClearMixin, SizeMixin, SerializationMixin {
 
     @Read(ZERO2MANY) fun <R> useEntries(offset: Long = 0, block: (Sequence<T>) -> R): R
 
@@ -20,6 +21,8 @@ interface Log<T>: AppendMixin<T, Long>, ClearMixin, SerializationMixin {
 
     @Read(ONE) val lastOffset: Long
 
+    override val size: Int
+        get() = useEntries { it.count() }
 }
 
 data class EntryWithOffset<T>(val offset: Long, val entry: T)

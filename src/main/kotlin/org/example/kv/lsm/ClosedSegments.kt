@@ -1,6 +1,7 @@
 package org.example.kv.lsm
 
 import mu.KotlinLogging
+import org.example.concepts.SizeMixin
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -8,7 +9,7 @@ import kotlin.concurrent.write
 
 internal class ClosedSegments<K, V>(private val mergeStrategy: SegmentMergeStrategy<K, V>,
                                     private var segments: MutableList<Segment<K, V>> = LinkedList())
-    : Iterable<Segment<K, V>> {
+    : Iterable<Segment<K, V>>, SizeMixin {
 
     private val logger = KotlinLogging.logger {}
 
@@ -48,4 +49,7 @@ internal class ClosedSegments<K, V>(private val mergeStrategy: SegmentMergeStrat
     }
 
     override fun iterator(): Iterator<Segment<K, V>> = lock.read { segments.iterator() }
+
+    override val size: Int
+        get() = lock.read { segments.sumOf { it.size } }
 }

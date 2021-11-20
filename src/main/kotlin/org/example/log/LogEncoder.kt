@@ -6,12 +6,14 @@ import org.example.encoder.Encoder
 import org.koin.core.qualifier.named
 import java.nio.file.Path
 
-val logEncoderQ = named("logEncoder")
+val logEncoderQ = named(LogEncoder::class.qualifiedName!!)
 
-class LogEncoder<S, T>(
+private class LogEncoder<S, T>(
     private val log: Log<T>,
     private val encoder: Encoder<S, T>
-): Log<S>, SerializationMixin by log, ClearMixin by log {
+): Log<S>,
+    SerializationMixin by log,
+    ClearMixin by log {
 
     override fun append(entry: S) = log.append(encoder.encode(entry))
 

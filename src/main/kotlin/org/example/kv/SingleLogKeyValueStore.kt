@@ -3,6 +3,7 @@ package org.example.kv
 import org.example.DataEntry
 import org.example.concepts.AppendMixin
 import org.example.concepts.ClearMixin
+import org.example.concepts.SizeMixin
 import org.example.log.EntryWithOffset
 import org.example.log.Log
 import org.example.log.LogFactory
@@ -13,6 +14,7 @@ private class SingleLogKeyValueStore<K, V>(
     private val tombstone: V
 ): LogKeyValueStore<K, V>,
     AppendMixin<Map.Entry<K, V>, Long> by log,
+    SizeMixin by log,
     ClearMixin by log {
 
     override fun get(key: K): V? = this[key, 0]

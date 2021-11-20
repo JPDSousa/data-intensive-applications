@@ -71,6 +71,12 @@ private class SortedMapStringTable<K: Comparable<K>, V>(
 
     override fun isFull(): Boolean = byteLength >= segmentThreshold
 
+    override val size: Int
+        get() = when(dumped) {
+            true -> dump.size
+            false -> memTable.size
+        }
+
     private fun notOnDump(operationName: String)
             = IllegalStateException("Cannot $operationName an SSTable which has already been dumped")
 

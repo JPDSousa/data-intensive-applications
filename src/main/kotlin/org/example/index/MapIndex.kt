@@ -1,6 +1,9 @@
 package org.example.index
 
-import org.example.concepts.*
+import org.example.concepts.ImmutableDictionaryMixin
+import org.example.concepts.MutableDictionaryMixin
+import org.example.concepts.asImmutableDictionaryMixin
+import org.example.concepts.asMutableDictionaryMixin
 import org.koin.core.qualifier.named
 import java.util.*
 
@@ -12,8 +15,7 @@ private class MapIndex<K>(
     private val index: MutableMap<K, Long>
 ): Index<K>,
     MutableDictionaryMixin<K, Long> by index.asMutableDictionaryMixin(),
-    ImmutableDictionaryMixin<K, Long> by index.asImmutableDictionaryMixin(),
-    ClearMixin by index.asClearMixin() {
+    ImmutableDictionaryMixin<K, Long> by index.asImmutableDictionaryMixin() {
 
     override fun putAllOffsets(pairs: Iterable<IndexEntry<K>>) {
         pairs.forEach { put(it.key, it.offset) }

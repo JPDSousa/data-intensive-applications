@@ -116,8 +116,10 @@ interface IndexCheckpointStoreFactory<K> {
 /**
  * Responsible for running a [CheckpointableIndex.checkpoint] operation recurrently, via [checkpointJob].
  */
-private class RecurrentCheckpointableIndex<K>(private val index: CheckpointableIndex<K>,
-                                              private val checkpointJob: RecurrentJob): CheckpointableIndex<K> by index {
+private class RecurrentCheckpointableIndex<K>(
+    private val index: CheckpointableIndex<K>,
+    private val checkpointJob: RecurrentJob
+): CheckpointableIndex<K> by index {
 
     override fun put(key: K, value: Long) {
         index[key] = value
@@ -129,9 +131,10 @@ private class RecurrentCheckpointableIndex<K>(private val index: CheckpointableI
 /**
  * Class that elementary implements operation of [CheckpointableIndex.checkpoint].
  */
-private class SingleCheckpointableIndex<K>(private val index: Index<K>,
-                                           private val store: CheckpointStore<Sequence<IndexEntry<K>>>)
-    : CheckpointableIndex<K>, Index<K> by index {
+private class SingleCheckpointableIndex<K>(
+    private val index: Index<K>,
+    private val store: CheckpointStore<Sequence<IndexEntry<K>>>
+) : CheckpointableIndex<K>, Index<K> by index {
 
     override fun checkpoint() {
         index.useEntries {

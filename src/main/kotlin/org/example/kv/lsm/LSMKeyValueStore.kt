@@ -114,6 +114,9 @@ private class SegmentedLSM<K, V>(private val segmentManager: SegmentManager<K, V
         closedSegments.clear()
     }
 
+    override val size: Int
+        get() = closedSegments.size + openSegment.size
+
 }
 
 class LSMKeyValueStoreFactory<K, V>(private val tombstone: V, private val dispatcher: CoroutineDispatcher) {

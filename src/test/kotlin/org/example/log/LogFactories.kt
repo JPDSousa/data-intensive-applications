@@ -5,21 +5,62 @@ import io.kotest.property.Gen
 import io.kotest.property.arbitrary.bind
 import io.kotest.property.exhaustive.exhaustive
 import org.example.GenWrapper
-import org.example.encoder.Encoder
-import org.example.encoder.LongByteArrayMapEntry2StringEncoders
-import org.example.encoder.StringStringMapEntry2StringEncoders
+import org.example.encoder.*
+import org.example.getAllGen
+import org.example.map
+import org.koin.core.module.Module
+import org.koin.core.qualifier.Qualifier
 import org.koin.dsl.module
 
+// TODO generate delegates in different order
+internal inline fun <T, S, reified TFG, reified SFG, reified E> Module.registerLogGenerators(
+    baseQualifier: Qualifier,
+    typeQualifiers: Iterable<Qualifier>,
+    targetEncodingQualifiers: Iterable<Qualifier>,
+    crossinline baseFactory: () -> Gen<LogFactory<T>>,
+    crossinline baseDelegate: (Gen<LogFactory<T>>) -> TFG,
+)
+        where TFG: GenWrapper<LogFactory<T>>,
+              SFG: GenWrapper<LogFactory<S>>,
+              E: GenWrapper<Encoder<T, S>> {
+
+    single(baseQualifier) { baseDelegate(baseFactory()) }
+
+    val logEncoderQualifiers = targetEncodingQualifiers - logEncoderQ
+    single(logEncoderQ) { baseDelegate(
+        logEncoderFactories(
+            get<E>().gen,
+            getAllGen<LogFactory<S>, SFG>(logEncoderQualifiers)
+        )
+    ) }
+
+    val sizeCachedQualifiers = typeQualifiers - delegateQualifiers
+    single(sizeLogQ) { baseDelegate(
+        getAllGen<LogFactory<T>, TFG>(sizeCachedQualifiers).map {
+            SizeCachedLogFactory(it)
+        }
+    ) }
+
+    single { baseDelegate(getAllGen<LogFactory<T>, TFG>(typeQualifiers)) }
+}
 
 val logFactoriesModule = module {
 
-    single(lineLogQ) { StringLogFactories(listOf(LineLogFactory).exhaustive()) }
+    registerLogGenerators<String, ByteArray, StringLogFactories, ByteArrayLogFactories, StringByteArrayEncoders>(
+        lineLogQ,
+        stringQualifiers,
+        byteArrayQualifiers,
+        { listOf(LineLogFactory).exhaustive() },
+        { StringLogFactories(it) },
+    )
 
-    single<StringLogFactories> { get(lineLogQ) }
-
-    single(binaryLogQ) { ByteArrayLogFactories(listOf(BinaryLogFactory).exhaustive()) }
-
-    single<ByteArrayLogFactories> { get(binaryLogQ) }
+    registerLogGenerators<ByteArray, String, ByteArrayLogFactories, StringLogFactories, ByteArrayStringEncoders>(
+        binaryLogQ,
+        byteArrayQualifiers,
+        stringQualifiers,
+        { listOf(BinaryLogFactory).exhaustive() },
+        { ByteArrayLogFactories(it) }
+    )
 
     single { StringStringMapEntryLogFactories(
         logEncoderFactories(

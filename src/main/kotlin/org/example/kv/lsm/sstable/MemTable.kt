@@ -1,10 +1,7 @@
 package org.example.kv.lsm.sstable
 
 import mu.KotlinLogging
-import org.example.concepts.ClearMixin
-import org.example.concepts.ImmutableDictionaryMixin
-import org.example.concepts.MutableDictionaryMixin
-import org.example.concepts.SerializationMixin
+import org.example.concepts.*
 import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.TombstoneKeyValueStore
 import org.example.kv.lsm.SegmentDirectory
@@ -23,7 +20,8 @@ private class MapMemTable<K: Comparable<K>, V>(
     private val memTable: SortedMap<K, V>,
     private val keySize: SizeCalculator<K>,
     private val valueSize: SizeCalculator<V>,
-): MemTable<K, V> {
+): MemTable<K, V>,
+    ImmutableDictionaryMixin<K, V> by memTable.asImmutableDictionaryMixin(){
 
     override var byteLength: Long = 0L
 
@@ -47,10 +45,6 @@ private class MapMemTable<K: Comparable<K>, V>(
             byteLength -= valueSize.sizeOf(oldValue)
         }
     }
-
-    override fun get(key: K): V? = memTable[key]
-
-    override fun contains(key: K) = key in memTable
 
 }
 

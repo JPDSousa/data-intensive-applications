@@ -2,16 +2,37 @@ package org.example.encoder
 
 import io.kotest.property.Gen
 import io.kotest.property.exhaustive.exhaustive
+import io.kotest.property.exhaustive.map
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 import org.example.GenWrapper
 import org.example.InstantSerializer
+import org.example.getAllGen
 import org.koin.dsl.module
 import java.time.Instant
 
 @ExperimentalSerializationApi
 val encoderModule = module {
+
+    single(protobufQualifier) { StringByteArrayEncoders(protobufEncoderGen(serializer()))}
+
+    single(charsetQualifier) { StringByteArrayEncoders(
+        SupportedCharsets.values()
+            .toList()
+            .exhaustive()
+            .map { CharsetEncoder(it) }
+    ) }
+
+    single { StringByteArrayEncoders(
+        getAllGen<Encoder<String, ByteArray>, StringByteArrayEncoders>(listOf(protobufQualifier, charsetQualifier))
+    ) }
+
+    single(jsonQualifier) { ByteArrayStringEncoders(jsonEncoderGen(serializer())) }
+
+    single { ByteArrayStringEncoders(
+        getAllGen<Encoder<ByteArray, String>, ByteArrayStringEncoders>(listOf(jsonQualifier))
+    ) }
 
     single { Instant2StringEncoders(jsonEncoderGen(InstantSerializer())) }
 
@@ -32,6 +53,13 @@ fun <S> jsonEncoderGen(serializer: KSerializer<S>): Gen<Encoder<S, String>>
 @ExperimentalSerializationApi
 fun <S> protobufEncoderGen(serializer: KSerializer<S>): Gen<Encoder<S, ByteArray>>
         = listOf(ProtobufBinaryEncoder(serializer)).exhaustive()
+
+data class StringByteArrayEncoders(
+    override val gen: Gen<Encoder<String, ByteArray>>
+) : GenWrapper<Encoder<String, ByteArray>>
+data class ByteArrayStringEncoders(
+    override val gen: Gen<Encoder<ByteArray, String>>
+) : GenWrapper<Encoder<ByteArray, String>>
 
 data class Instant2StringEncoders(
     override val gen: Gen<Encoder<Instant, String>>

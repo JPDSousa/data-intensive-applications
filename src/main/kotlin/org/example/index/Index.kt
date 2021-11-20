@@ -1,11 +1,10 @@
 package org.example.index
 
 import kotlinx.serialization.Serializable
-import org.example.concepts.ClearMixin
 import org.example.concepts.ImmutableDictionaryMixin
 import org.example.concepts.MutableDictionaryMixin
 
-interface Index<K>: ImmutableDictionaryMixin<K, Long>, MutableDictionaryMixin<K, Long>, ClearMixin {
+interface Index<K>: ImmutableDictionaryMixin<K, Long>, MutableDictionaryMixin<K, Long> {
 
     fun putAllOffsets(pairs: Iterable<IndexEntry<K>>) {
         pairs.forEach {
