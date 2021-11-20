@@ -15,13 +15,12 @@ internal class StringIndexedKeyValueStoreSpec: ShouldSpec({
     val kvs: StringStringKeyValueStores = application.koin.get()
 
     include(keyValueStoreTests(
-        StringIndexedKeyValueStoreSpec::class.simpleName!!,
-        PropTestConfig(maxFailure = 3, iterations = 300),
         kvs.toArb(),
         Arb.string(),
         Arb.string()
             // TODO fix the harcoded filter. This should be specific to the TestInstance we're using
             .filterNot { it == Tombstone.string },
+        PropTestConfig(maxFailure = 3, iterations = 300),
     ))
 })
 
@@ -32,12 +31,11 @@ internal class BinaryIndexedKeyValueStoreSpec: ShouldSpec({
     val kvs: ByteArrayKeyValueStores = application.koin.get()
 
     include(keyValueStoreTests(
-        BinaryIndexedKeyValueStoreSpec::class.simpleName!!,
-        PropTestConfig(maxFailure = 3, iterations = 300),
         kvs.toArb(),
         Arb.long(),
         Arb.byteArray(Arb.int(0..100), Arb.byte())
             // TODO fix the harcoded filter. This should be specific to the TestInstance we're using
             .filterNot { possiblyArrayEquals(it, Tombstone.byte) },
+        PropTestConfig(maxFailure = 3, iterations = 300),
     ))
 })

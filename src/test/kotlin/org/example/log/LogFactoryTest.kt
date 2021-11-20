@@ -1,32 +1,35 @@
 package org.example.log
 
+import io.kotest.core.spec.style.shouldSpec
+import io.kotest.engine.spec.tempfile
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.next
+import io.kotest.property.checkAll
 import org.example.TestInstance
-import org.example.TestResources
 import org.example.assertPossiblyArrayEquals
-import org.example.test
-import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.TestInfo
 
-interface LogFactoryTest<T> {
+fun <T> logFactoryTests(
+    gen: Gen<TestInstance<LogFactory<T>>>,
+    valueGen: Arb<T>,
+    config: PropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100),
+) = shouldSpec {
 
-    fun instances(): Sequence<TestInstance<LogFactory<T>>>
+    should("create should load file content") {
+        checkAll(config, gen) { testInstance ->
+            val logFactory = testInstance.instance()
+            val path = tempfile().toPath()
+            val expectedValues = (1..100).map { valueGen.next() }
+            val log = logFactory.create(path)
+            log.appendAll(expectedValues.asSequence())
 
-    val resources: TestResources
+            val recoveredLog = logFactory.create(path)
+            val actualValues = recoveredLog.useEntries { it.toList() }
 
-    fun nextValue(): T
-
-    @TestFactory fun `create should load file content`(info: TestInfo) = instances().test(info) { logFactory ->
-        val path = resources.allocateTempLogFile()
-        val expectedValues = (1..100).map { nextValue() }
-        val log = logFactory.create(path)
-        log.appendAll(expectedValues.asSequence())
-
-        val recoveredLog = logFactory.create(path)
-        val actualValues = recoveredLog.useEntries { it.toList() }
-
-        expectedValues.zip(actualValues).forEach { (expected, actual) ->
-            assertPossiblyArrayEquals(expected, actual)
+            expectedValues.zip(actualValues).forEach { (expected, actual) ->
+                assertPossiblyArrayEquals(expected, actual)
+            }
         }
     }
-
 }

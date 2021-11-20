@@ -1,52 +1,32 @@
 package org.example.log
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import org.example.ApplicationTest
-import org.example.TestResources
-import org.example.generator.ByteArrayGenerator
-import java.util.concurrent.atomic.AtomicLong
+import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.property.Arb
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.byte
+import io.kotest.property.arbitrary.byteArray
+import io.kotest.property.arbitrary.int
+import org.example.bootstrapApplication
 
-internal class BinaryLogTest: ApplicationTest(), LogTest<ByteArray> {
+internal class BinaryLogSpec: ShouldSpec({
 
-    private val valueIterator = byteArrayGenerator.generate().iterator()
+    val application = bootstrapApplication()
+    val generator: BinaryLogs = application.koin.get(binaryLogQ)
 
-    override fun instances() = generator.generate()
+    include(logTests(
+        PropTestConfig(maxFailure = 3, iterations = 100),
+        generator.toArb(),
+        Arb.byteArray(Arb.int(0..100), Arb.byte())
+    ))
+})
 
-    override fun nextValue(): ByteArray = when {
-        valueIterator.hasNext() -> valueIterator.next()
-        else -> throw NoSuchElementException("No more values")
-    }
+internal class BinaryLogFactorySpec: ShouldSpec({
 
-    companion object {
+    val application = bootstrapApplication()
+    val logFactories: ByteArrayLogFactories = application.koin.get(binaryLogQ)
 
-        @JvmStatic
-        private val byteArrayGenerator: ByteArrayGenerator = application.koin.get()
-
-        @JvmStatic
-        private val generator: BinaryLogs = application.koin.get(binaryLogQ)
-
-    }
-
-}
-
-internal class BinaryLogFactoryTest: ApplicationTest(), LogFactoryTest<ByteArray> {
-
-    @ExperimentalSerializationApi
-    override fun instances() = logFactories.generate()
-
-    override val resources: TestResources
-        get() = application.koin.get()
-
-    private val uniqueGenerator = AtomicLong()
-
-    override fun nextValue(): ByteArray = uniqueGenerator.getAndIncrement()
-        .toString()
-        .toByteArray()
-
-    companion object {
-
-        @JvmStatic
-        private val logFactories: ByteArrayLogFactories = application.koin.get(binaryLogQ)
-
-    }
-}
+    include(logFactoryTests(
+        logFactories.toArb(),
+        Arb.byteArray(Arb.int(0..100), Arb.byte())
+    ))
+})

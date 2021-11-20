@@ -1,44 +1,30 @@
 package org.example.log
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import org.example.ApplicationTest
-import org.example.TestInstance
-import org.example.TestResources
-import org.example.generator.StringGenerator
-import org.example.test
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.TestInfo
-import java.util.concurrent.atomic.AtomicLong
+import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.next
+import io.kotest.property.arbitrary.string
+import io.kotest.property.checkAll
+import org.example.bootstrapApplication
 
-internal class LineLogTest: ApplicationTest(), LogTest<String> {
+internal class LineLogSpec: ShouldSpec({
 
-    private val valueIterator = stringGenerator.generate().iterator()
+    val application = bootstrapApplication()
+    val gen = application.koin.get<StringLogs>(lineLogQ).toArb()
+    val valueGen = Arb.string()
+    val config = PropTestConfig(maxFailure = 3, iterations = 100)
 
-    override fun instances() = generator.generate()
+    include(logTests(
+        config,
+        gen,
+        valueGen
+    ))
 
-    override fun nextValue() = when {
-        valueIterator.hasNext() -> valueIterator.next()
-        else -> throw NoSuchElementException("No more values")
-    }
+    fun entriesShouldBePartitionedByLines(log: Log<String>, append: (Sequence<String>) -> Unit) {
 
-    @TestFactory
-    fun `entries should be partitioned by lines`(info: TestInfo) = instances().test(info) { log ->
-        entriesShouldBePartitionedByLines(log) { entries ->
-            entries.forEach { log.append(it) }
-        }
-    }
-
-    @TestFactory
-    fun `entries should be partitioned by lines (appendAll(`(info: TestInfo) = instances().test(info) { log ->
-        entriesShouldBePartitionedByLines(log) { entries ->
-            log.appendAll(entries)
-        }
-    }
-
-    private fun entriesShouldBePartitionedByLines(log: Log<String>, append: (Sequence<String>) -> Unit) {
-
-        val entries = (1..100).map { nextValue() }
+        val entries = (1..100).map { valueGen.next() }
             .asSequence()
         val expected = entries.joinToString("\n")
 
@@ -48,38 +34,36 @@ internal class LineLogTest: ApplicationTest(), LogTest<String> {
 
         val testContent = log.useEntries { it.drop(initialSize).joinToString("\n") }
 
-        assertEquals(expected, testContent)
+        testContent shouldBe expected
     }
 
-    companion object {
-
-        @JvmStatic
-        private val stringGenerator: StringGenerator = application.koin.get()
-
-        @JvmStatic
-        private val generator: StringLogs = application.koin.get(lineLogQ)
-
+    should("entries should be partitioned by lines") {
+        checkAll(config, gen) { testInstance ->
+            val log = testInstance.instance()
+            entriesShouldBePartitionedByLines(log) { entries ->
+                entries.forEach { log.append(it) }
+            }
+        }
     }
 
-}
-
-internal class LineLogFactoryTest: ApplicationTest(), LogFactoryTest<String> {
-
-    @ExperimentalSerializationApi
-    override fun instances(): Sequence<TestInstance<LogFactory<String>>> = logFactories.generate()
-
-    override val resources: TestResources
-        get() = application.koin.get()
-
-    private val uniqueGenerator = AtomicLong()
-
-    override fun nextValue(): String = uniqueGenerator.getAndIncrement()
-        .toString()
-
-    companion object {
-
-        @JvmStatic
-        private val logFactories: StringLogFactories = application.koin.get(lineLogQ)
-
+    should("entries should be partitioned by lines (appendAll)") {
+        checkAll(config, gen) { testInstance ->
+            val log = testInstance.instance()
+            entriesShouldBePartitionedByLines(log) { entries ->
+                log.appendAll(entries)
+            }
+        }
     }
-}
+
+})
+
+internal class LineLogFactorySpec: ShouldSpec({
+
+    val application = bootstrapApplication()
+    val logFactories: StringLogFactories = application.koin.get(lineLogQ)
+
+    include(logFactoryTests(
+        logFactories.toArb(),
+        Arb.string(),
+    ))
+})

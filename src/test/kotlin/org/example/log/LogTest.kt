@@ -1,99 +1,114 @@
 package org.example.log
 
+import io.kotest.core.spec.style.shouldSpec
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.longs.shouldBeLessThan
+import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.next
+import io.kotest.property.checkAll
 import org.example.TestInstance
-import org.example.assertPossiblyArrayEquals
-import org.example.test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.TestInfo
 
+fun <T> logTests(
+    config: PropTestConfig,
+    gen: Gen<TestInstance<Log<T>>>,
+    valueGen: Arb<T>,
+) = shouldSpec {
 
-@Suppress("FunctionName")
-interface LogTest<T> {
-
-    fun instances(): Sequence<TestInstance<Log<T>>>
-
-    fun nextValue(): T
-
-    @TestFactory fun `append on empty file should return 0`(info: TestInfo) = instances().test(info) { log ->
-        val initialSize = log.byteLength
-        assertEquals(initialSize, log.append(nextValue()))
+    should("append on empty file should return 0") {
+        checkAll(config, gen) { testSpec ->
+            val log = testSpec.instance()
+            val initialSize = log.byteLength
+            log.append(valueGen.next()) shouldBe initialSize
+        }
     }
 
-    @TestFactory fun `append should sum offset`(info: TestInfo) = instances().test(info) { log ->
-        val firstOffset = log.append(nextValue())
-        val secondOffset = log.append(nextValue())
+    should("append should sum offset") {
+        checkAll(config, gen) { testSpec ->
+            val log = testSpec.instance()
+            val firstOffset = log.append(valueGen.next())
+            val secondOffset = log.append(valueGen.next())
 
-        assertTrue(firstOffset < secondOffset)
+            firstOffset shouldBeLessThan secondOffset
+        }
     }
 
-    @TestFactory fun `single append should be readable`(info: TestInfo) = instances().test(info) { log ->
+    should("single append should be readable") {
+        checkAll(config, gen) { testSpec ->
+            val log = testSpec.instance()
 
-        val initialSize = log.useEntries { it.toList() }.size
+            val initialSize = log.useEntries { it.toList() }.size
 
-        val expected = nextValue()
-        log.append(expected)
+            val expected = valueGen.next()
+            log.append(expected)
 
-        val items = log.useEntries { it.toList() }
+            val items = log.useEntries { it.toList() }
 
-        assertEquals(items.size, initialSize + 1)
+            items.size shouldBe initialSize + 1
 
-        val actual = items.last()
-        assertPossiblyArrayEquals(expected, actual)
-    }
-
-    @TestFactory fun `multiple appends should be readable`(info: TestInfo) = instances().test(info) { log ->
-        multipleReadWriteCycle(log) { values -> values.map { log.append(it) }}
-    }
-
-    @TestFactory fun `atomic multiple appends (appendAll) should be readable`(info: TestInfo) = instances().test(info) { log ->
-        multipleReadWriteCycle(log) { values -> log.appendAll(values) }
-    }
-
-    @TestFactory fun `empty appendAll should not change structure`(info: TestInfo) = instances().test(info) { log ->
-        multipleReadWriteCycle(log, 0) { values -> log.appendAll(values) }
-    }
-
-    @TestFactory fun `clear removes all entries`(info: TestInfo) = instances().test(info) { log ->
-
-        log.clear()
-        assertEquals(0L, log.byteLength)
-        assertTrue(log.useEntries { it.toList() }.isEmpty())
+            items.last() shouldBe expected
+        }
     }
 
     fun multipleReadWriteCycle(log: Log<T>, countValues: Int = 50, append: (Sequence<T>) -> Sequence<Long>) {
 
         val initialSize = log.useEntries { it.count() }
 
-        val expectedList = generateSequence { nextValue() }
-                .take(countValues)
-                .toList()
+        val expectedList = generateSequence { valueGen.next() }
+            .take(countValues)
+            .toList()
 
         val insertedOffsets = append(expectedList.asSequence()).toList()
 
         val actualValuesList = log.useEntriesWithOffset { it.toList() }
 
-        assertEquals(expectedList.size, insertedOffsets.size)
-        assertEquals(initialSize + expectedList.size, actualValuesList.size)
+        insertedOffsets shouldHaveSize expectedList.size
+        actualValuesList shouldHaveSize initialSize + expectedList.size
 
         val testItems = actualValuesList.subList(initialSize, actualValuesList.size)
 
         expectedList.zip(testItems).forEach {
 
-            val expected = it.first
-            val actual = it.second.entry
-
-            assertPossiblyArrayEquals(expected, actual)
+            it.second.entry shouldBe it.first
         }
 
         testItems.zip(insertedOffsets).forEach {
 
-            val writeOffset = it.second
-            val readOffset = it.first.offset
-
-            assertEquals(writeOffset, readOffset)
+            it.first.offset shouldBe it.second
         }
     }
 
+    should("multiple appends should be readable") {
+        checkAll(config, gen) { testInstance ->
+            val log = testInstance.instance()
+            multipleReadWriteCycle(log) { values -> values.map { log.append(it) }}
+        }
+    }
+
+    should("atomic multiple appends (appendAll) should be readable") {
+        checkAll(config, gen) { testInstance ->
+            val log = testInstance.instance()
+            multipleReadWriteCycle(log) { values -> log.appendAll(values) }
+        }
+    }
+
+    should("empty appendAll should not change structure") {
+        checkAll(config, gen) { testInstance ->
+            val log = testInstance.instance()
+            multipleReadWriteCycle(log, 0) { values -> log.appendAll(values) }
+        }
+    }
+
+    should("clear removes all entries") {
+        checkAll(config, gen) { testInstance ->
+            val log = testInstance.instance()
+            log.clear()
+            assertEquals(0L, log.byteLength)
+            assertTrue(log.useEntries { it.toList() }.isEmpty())
+        }
+    }
 }

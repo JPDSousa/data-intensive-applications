@@ -14,8 +14,6 @@ internal class MemoryKeyValueStoreSpec: ShouldSpec({
     val stringArb = Arb.string().distinct()
 
     include(factory = keyValueStoreTests(
-        MemoryKeyValueStore::class.simpleName!!,
-        PropTestConfig(maxFailure = 3, iterations = 1),
         arbitrary {
             TestInstance(MemoryKeyValueStore::class.simpleName!!) {
                 MemoryKeyValueStore()
@@ -23,5 +21,6 @@ internal class MemoryKeyValueStoreSpec: ShouldSpec({
         },
         stringArb,
         stringArb,
+        PropTestConfig(maxFailure = 3, iterations = 1),
     ))
 })
