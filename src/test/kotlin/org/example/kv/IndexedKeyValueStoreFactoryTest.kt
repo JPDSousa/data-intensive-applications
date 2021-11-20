@@ -1,40 +1,26 @@
 package org.example.kv
 
-import org.example.ApplicationTest
+import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.bind
+import io.kotest.property.arbitrary.string
 import org.example.DataEntry
-import org.example.TestInstance
-import org.example.TestResources
-import org.example.generator.StringGenerator
-import org.example.log.LogFactory
+import org.example.bootstrapApplication
 import org.example.log.StringStringMapEntryLogFactories
 
-internal abstract class AbstractIndexedKeyValueStoreFactoryTest<K, V>: ApplicationTest(), LogKeyValueStoreFactoryTest<K, V> {
+internal class StringIndexedKeyValueStoreFactorySpec: ShouldSpec({
 
-    override val resources
-        get() = application.koin.get<TestResources>()
-}
+    val application = bootstrapApplication()
+    val factories: StringStringLogKeyValueStoreFactories = application.koin.get()
+    val logFactories: StringStringMapEntryLogFactories = application.koin.get()
 
-internal class StringIndexedKeyValueStoreFactoryTest: AbstractIndexedKeyValueStoreFactoryTest<String, String>() {
+    include(logKeyValueStoreFactoryTests(
+        factories.toArb(),
+        logFactories.toArb(),
+        Arb.bind(Arb.string(), Arb.string()) { key, value ->
+            DataEntry(key, value)
+        }
+    ))
 
-    private val valueGenerator = stringGenerator.generate().iterator()
+})
 
-    override fun instances() = factories.generate()
-
-    // TODO check for hasNext
-    override fun nextEntry() = DataEntry(valueGenerator.next(), valueGenerator.next())
-
-    override fun logFactories(): Sequence<TestInstance<LogFactory<Map.Entry<String, String>>>> = logFactoriesGenerator
-        .generate()
-
-    companion object {
-
-        private val logFactoriesGenerator: StringStringMapEntryLogFactories = application.koin.get()
-
-        @JvmStatic
-        private val factories: StringStringLogKeyValueStoreFactories = application.koin.get()
-
-        @JvmStatic
-        private val stringGenerator: StringGenerator = application.koin.get()
-
-    }
-}

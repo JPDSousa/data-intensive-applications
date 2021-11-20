@@ -1,50 +1,47 @@
 package org.example.kv
 
-import org.example.*
+import io.kotest.core.spec.style.shouldSpec
+import io.kotest.engine.spec.tempfile
+import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.next
+import io.kotest.property.checkAll
+import org.example.DataEntry
+import org.example.TestInstance
 import org.example.log.LogFactory
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.TestInfo
+import org.example.toMap
 
-interface LogKeyValueStoreFactoryTest<K, V> {
-
-    fun instances(): Sequence<TestInstance<LogKeyValueStoreFactory<K, V>>>
-
-    val resources: TestResources
-
-    fun nextEntry(): DataEntry<K, V>
+fun <K, V> logKeyValueStoreFactoryTests(
+    gen: Gen<TestInstance<LogKeyValueStoreFactory<K, V>>>,
+    logFactories: Gen<TestInstance<LogFactory<Map.Entry<K, V>>>>,
+    entryGen: Arb<DataEntry<K, V>>,
+    config: PropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100),
+) = shouldSpec {
 
     fun nextEntries(size: Int) = (1..size).asSequence()
-        .map { nextEntry() }
+        .map { entryGen.next() }
         .toMap()
 
-    fun logFactories(): Sequence<TestInstance<LogFactory<Map.Entry<K, V>>>>
+    should("create should load file content") {
+        checkAll(config, gen, logFactories) { lKVInstance, logFactoryInstance ->
 
-    @TestFactory fun `create should load file content`(info: TestInfo) = instances().flatMap { factory ->
-        logFactories().map { logFactory ->
-            TestInstance("$factory with $logFactory") {
-                FactoryCreation(factory, logFactory)
-            }
-        }}.test(info) { testInstance ->
-        val expectedEntries = nextEntries(100)
+            val logFactory = logFactoryInstance.instance()
+            val factory = lKVInstance.instance()
 
-        val log = resources.allocateTempLogFile()
-            .let { testInstance.logFactory.create(it) }
+            val expectedEntries = nextEntries(100)
 
-        val factory = testInstance.kvFactory
-        val keyValueStore = factory.createFromPair(log)
-        keyValueStore.putAll(expectedEntries)
+            val log = tempfile().toPath()
+                .let { logFactory.create(it) }
 
-        val actualEntries = factory.createFromPair(log)
-            .loadToMemory()
+            val keyValueStore = factory.createFromPair(log)
+            keyValueStore.putAll(expectedEntries)
 
-        assertEquals(expectedEntries, actualEntries)
+            val actualEntries = factory.createFromPair(log)
+                .loadToMemory()
+
+            actualEntries shouldBe expectedEntries
+        }
     }
-}
-
-private data class FactoryCreation<K, V>(val kvFactory: LogKeyValueStoreFactory<K, V>,
-                                         val logFactory: LogFactory<Map.Entry<K, V>>) {
-    constructor(kvFactory: TestInstance<LogKeyValueStoreFactory<K, V>>,
-                logFactory: TestInstance<LogFactory<Map.Entry<K, V>>>)
-            : this(kvFactory.instance(), logFactory.instance())
 }
