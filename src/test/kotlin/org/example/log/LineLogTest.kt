@@ -3,23 +3,23 @@ package org.example.log
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
-import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.string
 import io.kotest.property.checkAll
 import org.example.bootstrapApplication
+import org.example.defaultPropTestConfig
 
 internal class LineLogSpec: ShouldSpec({
 
     val application = bootstrapApplication()
     val gen = application.koin.get<StringLogs>(lineLogQ).toArb()
     val valueGen = Arb.string()
-    val config = PropTestConfig(maxFailure = 3, iterations = 100)
+    val config = defaultPropTestConfig
 
     include(logTests(
-        config,
         gen,
-        valueGen
+        valueGen,
+        config,
     ))
 
     fun entriesShouldBePartitionedByLines(log: Log<String>, append: (Sequence<String>) -> Unit) {

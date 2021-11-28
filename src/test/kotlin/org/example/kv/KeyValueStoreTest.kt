@@ -12,13 +12,14 @@ import io.kotest.property.arbitrary.distinct
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import org.example.TestInstance
+import org.example.defaultPropTestConfig
 
 @DelicateKotest
 fun <K, V> keyValueStoreTests(
     gen: Gen<TestInstance<KeyValueStore<K, V>>>,
     keyGen: Arb<K>,
     valueGen: Arb<V>,
-    config: PropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100),
+    config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
 
     should("absent key") {

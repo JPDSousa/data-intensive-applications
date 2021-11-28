@@ -2,7 +2,6 @@ package org.example.log
 
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.property.Arb
-import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.byte
 import io.kotest.property.arbitrary.byteArray
 import io.kotest.property.arbitrary.int
@@ -14,7 +13,6 @@ internal class BinaryLogSpec: ShouldSpec({
     val generator: BinaryLogs = application.koin.get(binaryLogQ)
 
     include(logTests(
-        PropTestConfig(maxFailure = 3, iterations = 100),
         generator.toArb(),
         Arb.byteArray(Arb.int(0..100), Arb.byte())
     ))

@@ -11,6 +11,7 @@ import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
 import org.example.TestInstance
 import org.example.bootstrapApplication
+import org.example.defaultPropTestConfig
 import org.example.kv.Tombstone
 import org.example.kv.lsm.SegmentDirectories
 import org.example.kv.lsm.SegmentDirectory
@@ -21,7 +22,7 @@ fun <K: Comparable<K>, V> memTableFactoryTests(
     segmentDirectories: Gen<TestInstance<SegmentDirectory>>,
     keyGen: Arb<K>,
     valueGen: Arb<V>,
-    config: PropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100),
+    config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
 
     should("be recoverable") {

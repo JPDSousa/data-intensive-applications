@@ -9,11 +9,12 @@ import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import org.example.TestInstance
+import org.example.defaultPropTestConfig
 
 fun <T> logFactoryTests(
     gen: Gen<TestInstance<LogFactory<T>>>,
     valueGen: Arb<T>,
-    config: PropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100),
+    config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
 
     should("create should load file content") {

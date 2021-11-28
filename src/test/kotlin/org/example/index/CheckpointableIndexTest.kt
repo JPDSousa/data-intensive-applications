@@ -11,6 +11,7 @@ import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
 import org.example.TestInstance
 import org.example.bootstrapApplication
+import org.example.defaultPropTestConfig
 
 internal class CheckpointableStringIndexSpec: ShouldSpec({
 
@@ -38,7 +39,7 @@ internal class CheckpointableLongIndexSpec: ShouldSpec({
 fun <K> checkpointableIndexFactoryTests(
     factories: Gen<TestInstance<CheckpointableIndexFactory<K>>>,
     keyGen: Arb<K>,
-    config: PropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100),
+    config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
     
     should("be recoverable") {

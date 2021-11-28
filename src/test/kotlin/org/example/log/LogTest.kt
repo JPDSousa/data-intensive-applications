@@ -12,11 +12,12 @@ import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import org.example.TestInstance
+import org.example.defaultPropTestConfig
 
 fun <T> logTests(
-    config: PropTestConfig,
     gen: Gen<TestInstance<Log<T>>>,
     valueGen: Arb<T>,
+    config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
 
     should("append on empty file should return 0") {

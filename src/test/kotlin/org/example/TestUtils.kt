@@ -1,6 +1,7 @@
 package org.example
 
 import io.kotest.core.TestConfiguration
+import io.kotest.property.PropTestConfig
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import org.example.encoder.encoderModule
@@ -23,6 +24,8 @@ private val testModule = module {
     single<CoroutineDispatcher> { Executors.newSingleThreadExecutor().asCoroutineDispatcher() }
     single { Clock.systemDefaultZone() }
 }
+
+val defaultPropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100)
 
 inline fun <reified T, reified G: TestGenerator<T>> Module.mergeGenerators(
     qualifiers: Iterable<Qualifier>,
