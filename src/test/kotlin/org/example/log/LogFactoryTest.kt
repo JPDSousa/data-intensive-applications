@@ -2,13 +2,13 @@ package org.example.log
 
 import io.kotest.core.spec.style.shouldSpec
 import io.kotest.engine.spec.tempfile
+import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.Gen
 import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import org.example.TestInstance
-import org.example.assertPossiblyArrayEquals
 
 fun <T> logFactoryTests(
     gen: Gen<TestInstance<LogFactory<T>>>,
@@ -28,7 +28,7 @@ fun <T> logFactoryTests(
             val actualValues = recoveredLog.useEntries { it.toList() }
 
             expectedValues.zip(actualValues).forEach { (expected, actual) ->
-                assertPossiblyArrayEquals(expected, actual)
+                actual shouldBe expected
             }
         }
     }

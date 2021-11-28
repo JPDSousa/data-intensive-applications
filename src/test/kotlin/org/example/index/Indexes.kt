@@ -116,23 +116,29 @@ class Indexes {
 
     private val generator = AtomicLong()
 
-    fun <K> hashIndexes(): Sequence<TestInstance<Index<K>>> {
+    fun <K> hashIndexes(): TestGenerator<Index<K>> {
 
         val factory = HashIndexFactory<K>()
         val instanceName = "${Index::class.simpleName} from ${HashIndexFactory::class.simpleName}"
 
-        return sequenceOf(TestInstance(instanceName) {
-            factory.create("$instanceName (${generator.getAndIncrement()})")
-        })
+        return object: TestGenerator<Index<K>> {
+
+            override fun generate() = sequenceOf(TestInstance(instanceName) {
+                factory.create("$instanceName (${generator.getAndIncrement()})")
+            })
+        }
     }
 
-    fun <K: Comparable<K>> treeIndexes(): Sequence<TestInstance<Index<K>>> {
+    fun <K: Comparable<K>> treeIndexes(): TestGenerator<Index<K>> {
 
         val factory = TreeIndexFactory<K>()
         val instanceName = "${Index::class.simpleName} from ${TreeIndexFactory::class.simpleName}"
 
-        return sequenceOf(TestInstance(instanceName) {
-            factory.create("$instanceName (${generator.getAndIncrement()})")
-        })
+        return object: TestGenerator<Index<K>> {
+            override fun generate(): Sequence<TestInstance<Index<K>>> = sequenceOf(TestInstance(instanceName) {
+                factory.create("$instanceName (${generator.getAndIncrement()})")
+            })
+
+        }
     }
 }

@@ -1,8 +1,10 @@
 package org.example.log
 
 import io.kotest.core.spec.style.shouldSpec
+import io.kotest.matchers.collections.beEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.longs.shouldBeLessThan
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.Gen
@@ -10,8 +12,6 @@ import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import org.example.TestInstance
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 
 fun <T> logTests(
     config: PropTestConfig,
@@ -107,8 +107,8 @@ fun <T> logTests(
         checkAll(config, gen) { testInstance ->
             val log = testInstance.instance()
             log.clear()
-            assertEquals(0L, log.byteLength)
-            assertTrue(log.useEntries { it.toList() }.isEmpty())
+            log.byteLength shouldBe 0L
+            log.useEntries { it.toList() } should beEmpty()
         }
     }
 }

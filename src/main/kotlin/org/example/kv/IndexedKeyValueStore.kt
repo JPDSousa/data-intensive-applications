@@ -11,7 +11,8 @@ import org.example.log.LogFactory
 private class IndexedKeyValueStore<K, V>(
         private val index: Index<K>,
         private val tombstone: V,
-        private val logKV: LogKeyValueStore<K, V>): LogKeyValueStore<K, V> by logKV {
+        private val logKV: LogKeyValueStore<K, V>
+): LogKeyValueStore<K, V> by logKV {
 
     override fun contains(key: K) = key in index && index[key] != tombstoneIndex
 

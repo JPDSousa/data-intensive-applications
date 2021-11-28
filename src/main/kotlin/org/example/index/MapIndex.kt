@@ -1,37 +1,28 @@
 package org.example.index
 
+import org.example.concepts.*
 import org.koin.core.qualifier.named
 import java.util.*
 
 val treeIndexQ = named("treeIndex")
 val hashIndexQ = named("hashIndex")
 
-private class MapIndex<K>(private val index: MutableMap<K, Long>): Index<K> {
-
-    override fun put(key: K, value: Long) {
-        index[key] = value
-    }
+private class MapIndex<K>(
+    private val index: MutableMap<K, Long>
+): Index<K>,
+    MutableDictionaryMixin<K, Long> by index.asMutableDictionaryMixin(),
+    ImmutableDictionaryMixin<K, Long> by index.asImmutableDictionaryMixin(),
+    ClearMixin by index.asClearMixin() {
 
     override fun putAllOffsets(pairs: Iterable<IndexEntry<K>>) {
-        pairs.forEach { index[it.key] = it.offset }
+        pairs.forEach { put(it.key, it.offset) }
     }
-
-    override fun get(key: K) = index[key]
 
     override fun <R> useEntries(block: (Sequence<IndexEntry<K>>) -> R) = index
         .map { IndexEntry(it.key, it.value) }
         .asSequence()
         .let(block)
 
-    override fun clear() {
-        index.clear()
-    }
-
-    override fun delete(key: K) {
-        index.remove(key)
-    }
-
-    override fun contains(key: K) = key in index
 }
 
 class TreeIndexFactory<K: Comparable<K>>: IndexFactory<K> {

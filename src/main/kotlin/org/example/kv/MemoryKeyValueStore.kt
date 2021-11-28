@@ -1,17 +1,10 @@
 package org.example.kv
 
-class MemoryKeyValueStore<K, V>(private val map: MutableMap<K, V> = mutableMapOf()): KeyValueStore<K, V> {
+import org.example.concepts.*
 
-    override fun put(key: K, value: V) { map[key] = value }
-
-    override fun putAll(entries: Map<out K, V>) { map.putAll(entries) }
-
-    override fun get(key: K) = map[key]
-
-    override fun delete(key: K) { map.remove(key) }
-
-    override fun clear() { map.clear() }
-
-    override fun contains(key: K) = key in map
-
-}
+class MemoryKeyValueStore<K, V>(
+    private val map: MutableMap<K, V> = mutableMapOf()
+): KeyValueStore<K, V>,
+    ClearMixin by map.asClearMixin(),
+    ImmutableDictionaryMixin<K, V> by map.asImmutableDictionaryMixin(),
+    MutableDictionaryMixin<K, V> by map.asMutableDictionaryMixin()

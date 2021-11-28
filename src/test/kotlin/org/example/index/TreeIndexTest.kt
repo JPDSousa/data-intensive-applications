@@ -1,19 +1,14 @@
 package org.example.index
 
-import org.example.TestInstance
-import java.util.concurrent.atomic.AtomicLong
+import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.string
 
-internal class TreeIndexTest: IndexTest<String> {
+internal class TreeIndexSpec: ShouldSpec({
 
-    private val uniqueGenerator = AtomicLong()
+    include(indexTests(
+        Indexes().treeIndexes<String>().toArb(),
+        Arb.string()
+    ))
+})
 
-    override fun instances(): Sequence<TestInstance<Index<String>>> = indexes.treeIndexes()
-
-    override fun nextKey() = uniqueGenerator.getAndIncrement().toString()
-
-    companion object {
-
-        @JvmStatic
-        internal val indexes = Indexes()
-    }
-}

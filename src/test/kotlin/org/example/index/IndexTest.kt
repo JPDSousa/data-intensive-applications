@@ -1,11 +1,81 @@
 package org.example.index
 
+import io.kotest.core.spec.style.shouldSpec
+import io.kotest.matchers.nulls.beNull
+import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.PropTestConfig
+import io.kotest.property.arbitrary.next
+import io.kotest.property.checkAll
 import org.example.TestInstance
-import org.example.test
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.TestFactory
-import org.junit.jupiter.api.TestInfo
+
+fun <K> indexTests(
+    indices: Gen<TestInstance<Index<K>>>,
+    keyGen: Arb<K>,
+    config: PropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100),
+) = shouldSpec {
+
+    should("offsets are persisted") {
+        checkAll(config, indices) { spec ->
+            val index = spec.instance()
+            val key = keyGen.next()
+            val expected = 1234L
+
+            index[key] = expected
+            index[key] shouldBe expected
+        }
+    }
+
+    should("absent entry has no offset") {
+        checkAll(config, indices) { spec ->
+            val index = spec.instance()
+
+            index[keyGen.next()] should beNull()
+        }
+    }
+
+    should("reads do not delete entries") {
+        checkAll(config, indices) { spec ->
+            val index = spec.instance()
+            val key = keyGen.next()
+            val expected = 1234L
+
+            index[key] = expected
+            index[key] shouldBe expected
+            // second read makes sure that the value is still there
+            index[key] shouldBe expected
+        }
+    }
+
+    should("sequential writes act as updates") {
+        checkAll(config, indices) { spec ->
+            val index = spec.instance()
+            val key = keyGen.next()
+            val expected = 4321L
+            index[key] = 1234L
+            index[key] = expected
+
+            index[key] shouldBe expected
+        }
+    }
+
+    should("keys are isolated") {
+        checkAll(config, indices) { spec ->
+            val index = spec.instance()
+            val key1 = keyGen.next()
+            val value1 = 1234L
+            val key2 = keyGen.next()
+            val value2 = 4321L
+            index[key1] = value1
+            index[key2] = value2
+
+            index[key1] shouldBe value1
+            index[key2] shouldBe value2
+        }
+    }
+}
 
 @Suppress("FunctionName")
 interface IndexTest<K> {
@@ -14,46 +84,4 @@ interface IndexTest<K> {
 
     fun nextKey(): K
 
-    @TestFactory fun `offsets are persisted`(info: TestInfo) = instances().test(info) { index ->
-        val key = nextKey()
-        val expected = 1234L
-
-        index[key] = expected
-        assertEquals(expected, index[key])
-    }
-
-    @TestFactory fun `absent entry has no offset`(info: TestInfo) = instances().test(info) { index ->
-        assertNull(index[nextKey()])
-    }
-
-    @TestFactory fun `reads do not delete entries`(info: TestInfo) = instances().test(info) { index ->
-        val key = nextKey()
-        val expected = 1234L
-
-        index[key] = expected
-        assertEquals(expected, index[key])
-        // second read asserts that the value is still there
-        assertEquals(expected, index[key])
-    }
-
-    @TestFactory fun `sequential writes act as updates`(info: TestInfo) = instances().test(info) { index ->
-        val key = nextKey()
-        val expected = 4321L
-        index[key] = 1234L
-        index[key] = 4321L
-
-        assertEquals(expected, index[key])
-    }
-
-    @TestFactory fun `keys are isolated`(info: TestInfo) = instances().test(info) { index ->
-        val key1 = nextKey()
-        val value1 = 1234L
-        val key2 = nextKey()
-        val value2 = 4321L
-        index[key1] = value1
-        index[key2] = value2
-
-        assertEquals(value1, index[key1])
-        assertEquals(value2, index[key2])
-    }
 }

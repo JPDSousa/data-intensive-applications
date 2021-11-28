@@ -1,30 +1,19 @@
 package org.example.index
 
-import org.example.TestInstance
-import java.util.concurrent.atomic.AtomicLong
+import io.kotest.core.spec.style.ShouldSpec
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.long
+import io.kotest.property.arbitrary.string
 
-internal abstract class HashIndexTest<K>: IndexTest<K> {
+internal class HashIndexSpec: ShouldSpec({
 
-    internal val uniqueGenerator = AtomicLong()
+    include(indexTests(
+        Indexes().hashIndexes<String>().toArb(),
+        Arb.string()
+    ))
 
-    override fun instances(): Sequence<TestInstance<Index<K>>> = indexes.hashIndexes()
-
-    companion object {
-
-        @JvmStatic
-        internal val indexes = Indexes()
-    }
-
-}
-
-internal class LongHashIndexTest: HashIndexTest<Long>() {
-
-    override fun nextKey() = uniqueGenerator.getAndIncrement()
-
-}
-
-internal class StringHashIndexTest: HashIndexTest<String>() {
-
-    override fun nextKey() = uniqueGenerator.getAndIncrement().toString()
-
-}
+    include(indexTests(
+        Indexes().hashIndexes<Long>().toArb(),
+        Arb.long()
+    ))
+})

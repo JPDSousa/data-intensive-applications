@@ -29,6 +29,19 @@ interface ClearMixin {
     fun clear()
 }
 
+fun <K, V> MutableMap<K, V>.asClearMixin(): ClearMixin {
+
+    val map = this
+
+    return object: ClearMixin {
+
+        override fun clear() {
+            map.clear()
+        }
+
+    }
+}
+
 interface AppendMixin<T, R> {
 
     /**
