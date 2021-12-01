@@ -11,20 +11,18 @@ import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.distinct
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
-import org.example.TestInstance
 import org.example.defaultPropTestConfig
 
 @DelicateKotest
 fun <K, V> keyValueStoreTests(
-    gen: Gen<TestInstance<KeyValueStore<K, V>>>,
+    gen: Gen<KeyValueStore<K, V>>,
     keyGen: Arb<K>,
     valueGen: Arb<V>,
     config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
 
     should("absent key") {
-        checkAll(config, gen) { instanceSpec ->
-            val kv = instanceSpec.instance()
+        checkAll(config, gen) { kv ->
             val key = keyGen.next()
 
             kv[key] should beNull()
@@ -33,8 +31,7 @@ fun <K, V> keyValueStoreTests(
     }
 
     should("written value should be readable") {
-        checkAll(config, gen) { instanceSpec ->
-            val kv = instanceSpec.instance()
+        checkAll(config, gen) { kv ->
             val key = keyGen.next()
             val expected = valueGen.next()
 
@@ -45,8 +42,7 @@ fun <K, V> keyValueStoreTests(
     }
 
     should("multiple keys are isolated") {
-        checkAll(config, gen) { instanceSpec ->
-            val kv = instanceSpec.instance()
+        checkAll(config, gen) { kv ->
 
             val entries = (0..5).associate { Pair(keyGen.next(), valueGen.next()) }
 
@@ -60,8 +56,7 @@ fun <K, V> keyValueStoreTests(
     }
 
     should("key update") {
-        checkAll(config, gen) { instanceSpec ->
-            val kv = instanceSpec.instance()
+        checkAll(config, gen) { kv ->
 
             val key = keyGen.next()
             val old = valueGen.next()
@@ -76,8 +71,7 @@ fun <K, V> keyValueStoreTests(
     }
 
     should("deleted key becomes absent") {
-        checkAll(config, gen) { instanceSpec ->
-            val kv = instanceSpec.instance()
+        checkAll(config, gen) { kv ->
 
             val distinctKeyGen = keyGen.distinct()
             val key1 = distinctKeyGen.next()

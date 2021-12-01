@@ -1,18 +1,22 @@
 package org.example.log
 
+import io.kotest.common.DelicateKotest
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.next
 import io.kotest.property.arbitrary.string
 import io.kotest.property.checkAll
+import kotlinx.serialization.ExperimentalSerializationApi
 import org.example.bootstrapApplication
 import org.example.defaultPropTestConfig
 
+@DelicateKotest
+@ExperimentalSerializationApi
 internal class LineLogSpec: ShouldSpec({
 
     val application = bootstrapApplication()
-    val gen = application.koin.get<StringLogs>(lineLogQ).toArb()
+    val gen = application.koin.get<StringLogs>(lineLogQ).gen
     val valueGen = Arb.string()
     val config = defaultPropTestConfig
 
@@ -38,8 +42,7 @@ internal class LineLogSpec: ShouldSpec({
     }
 
     should("entries should be partitioned by lines") {
-        checkAll(config, gen) { testInstance ->
-            val log = testInstance.instance()
+        checkAll(config, gen) { log ->
             entriesShouldBePartitionedByLines(log) { entries ->
                 entries.forEach { log.append(it) }
             }
@@ -47,8 +50,7 @@ internal class LineLogSpec: ShouldSpec({
     }
 
     should("entries should be partitioned by lines (appendAll)") {
-        checkAll(config, gen) { testInstance ->
-            val log = testInstance.instance()
+        checkAll(config, gen) { log ->
             entriesShouldBePartitionedByLines(log) { entries ->
                 log.appendAll(entries)
             }
@@ -57,13 +59,15 @@ internal class LineLogSpec: ShouldSpec({
 
 })
 
+@DelicateKotest
+@ExperimentalSerializationApi
 internal class LineLogFactorySpec: ShouldSpec({
 
     val application = bootstrapApplication()
     val logFactories: StringLogFactories = application.koin.get(lineLogQ)
 
     include(logFactoryTests(
-        logFactories.toArb(),
+        logFactories.gen,
         Arb.string(),
     ))
 })

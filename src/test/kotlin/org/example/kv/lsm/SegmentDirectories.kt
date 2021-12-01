@@ -1,24 +1,20 @@
 package org.example.kv.lsm
 
-import org.example.TestGenerator
-import org.example.TestInstance
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.arbitrary
+import org.example.GenWrapper
 import org.example.TestResources
 import org.koin.dsl.module
 
-interface SegmentDirectories: TestGenerator<SegmentDirectory>
-
-private class GenericSegmentDirectories(private val resources: TestResources): SegmentDirectories {
-
-    override fun generate(): Sequence<TestInstance<SegmentDirectory>> = sequenceOf(
-        TestInstance("${SegmentDirectory::class.simpleName}") {
-            SegmentDirectory(resources.allocateTempDir("segmented-"))
-        }
-    )
-}
+data class SegmentDirectories(
+    override val gen: Gen<SegmentDirectory>
+) : GenWrapper<SegmentDirectory>
 
 val segmentDirectoriesModule = module {
 
-    single<SegmentDirectories> {
-        GenericSegmentDirectories(get())
-    }
+    single {
+        val resources: TestResources = get()
+        SegmentDirectories(
+            arbitrary { SegmentDirectory(resources.allocateTempDir("segmented-")) }
+        ) }
 }

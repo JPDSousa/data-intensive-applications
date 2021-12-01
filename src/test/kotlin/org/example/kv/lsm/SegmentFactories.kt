@@ -1,77 +1,53 @@
 package org.example.kv.lsm
 
-import org.example.TestGenerator
-import org.example.TestInstance
-import org.example.kv.LogKeyValueStoreFactories
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.bind
+import org.example.GenWrapper
+import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.LongByteArrayLogKeyValueStoreFactories
 import org.example.kv.StringStringLogKeyValueStoreFactories
 import org.example.kv.segmentThreshold
-import org.example.log.LogFactories
+import org.example.log.LogFactory
 import org.example.log.LongByteArrayMapEntryLogFactories
 import org.example.log.StringStringMapEntryLogFactories
+import org.koin.core.module.Module
 import org.koin.dsl.module
 
-interface SegmentFactories<K, V>: TestGenerator<SegmentFactory<K, V>>
+data class StringStringSegmentFactories(
+    override val gen: Gen<SegmentFactory<String, String>>
+) : GenWrapper<SegmentFactory<String, String>>
+data class LongByteArraySegmentFactories(
+    override val gen: Gen<SegmentFactory<Long, ByteArray>>
+) : GenWrapper<SegmentFactory<Long, ByteArray>>
 
-interface StringStringSegmentFactories: SegmentFactories<String, String>
-interface LongByteArraySegmentFactories: SegmentFactories<Long, ByteArray>
-
-private class DelegateStringStringSegmentFactories(private val delegate: SegmentFactories<String, String>)
-    : StringStringSegmentFactories, SegmentFactories<String, String> by delegate
-
-private class DelegateLongByteArraySegmentFactories(private val delegate: SegmentFactories<Long, ByteArray>)
-    : LongByteArraySegmentFactories, SegmentFactories<Long, ByteArray> by delegate
-
-private class GenericSegmentFactories<K, V>(
-    private val segmentDirectories: SegmentDirectories,
-    private val logFactories: LogFactories<Map.Entry<K, V>>,
-    private val logKVFactories: LogKeyValueStoreFactories<K, V>
-): SegmentFactories<K, V> {
-
-    override fun generate(): Sequence<TestInstance<SegmentFactory<K, V>>> = sequence {
-
-        for(segmentDirectory in segmentDirectories) {
-
-            for(logFactory in logFactories) {
-
-                for(logKVFactory in logKVFactories) {
-
-                    val instanceName = "${SegmentFactory::class.simpleName} with $segmentDirectory, $logFactory " +
-                            "and $logKVFactory;"
-                    yield(TestInstance(instanceName) {
-                        SegmentFactory(
-                            segmentDirectory.instance(),
-                            logFactory.instance(),
-                            logKVFactory.instance(),
-                            segmentThreshold
-                        )
-                    })
-                }
-            }
-        }
-    }
+private inline fun <K, V, reified R, reified L, reified LKV> Module.singleSegmentFactories(
+    crossinline operation: (Gen<SegmentFactory<K, V>>) -> R
+) where R:  GenWrapper<SegmentFactory<K, V>>,
+        L: GenWrapper<LogFactory<Map.Entry<K, V>>>,
+        LKV: GenWrapper<LogKeyValueStoreFactory<K, V>> {
+    single { operation(Arb.bind(
+        get<L>().gen,
+        get<LKV>().gen,
+        get<SegmentDirectories>().gen
+    ) { logFactory, kvFactory, segmentDirectory ->
+        SegmentFactory(
+            segmentDirectory,
+            logFactory,
+            kvFactory,
+            segmentThreshold,
+        )
+    }) }
 }
 
 val segmentFactoriesModule = module {
 
-    single<StringStringSegmentFactories> {
-        DelegateStringStringSegmentFactories(
-            GenericSegmentFactories(
-                get(),
-                get<StringStringMapEntryLogFactories>(),
-                get<StringStringLogKeyValueStoreFactories>()
-            )
-        )
+    singleSegmentFactories<String, String, StringStringSegmentFactories, StringStringMapEntryLogFactories, StringStringLogKeyValueStoreFactories> {
+        StringStringSegmentFactories(it)
     }
 
-    single<LongByteArraySegmentFactories> {
-        DelegateLongByteArraySegmentFactories(
-            GenericSegmentFactories(
-                get(),
-                get<LongByteArrayMapEntryLogFactories>(),
-                get<LongByteArrayLogKeyValueStoreFactories>()
-            )
-        )
+    singleSegmentFactories<Long, ByteArray, LongByteArraySegmentFactories, LongByteArrayMapEntryLogFactories, LongByteArrayLogKeyValueStoreFactories> {
+        LongByteArraySegmentFactories(it)
     }
 
 }

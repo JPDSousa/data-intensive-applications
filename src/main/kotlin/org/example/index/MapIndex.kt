@@ -6,6 +6,7 @@ import java.util.*
 
 val treeIndexQ = named("treeIndex")
 val hashIndexQ = named("hashIndex")
+val indicesQ = listOf(treeIndexQ, hashIndexQ)
 
 private class MapIndex<K>(
     private val index: MutableMap<K, Long>

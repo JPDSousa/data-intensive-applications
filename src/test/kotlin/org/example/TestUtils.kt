@@ -1,47 +1,27 @@
 package org.example
 
+import io.kotest.common.DelicateKotest
 import io.kotest.core.TestConfiguration
-import io.kotest.property.PropTestConfig
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
-import org.example.encoder.encoderModule
-import org.example.generator.CompositeGenerator
-import org.example.generator.primitiveGeneratorsModule
-import org.example.index.indexModule
-import org.example.kv.kvModule
-import org.example.log.logModule
-import org.example.size.calculatorsModule
-import org.koin.core.module.Module
-import org.koin.core.qualifier.Qualifier
-import org.koin.dsl.koinApplication
-import org.koin.dsl.module
-import java.time.Clock
-import java.util.concurrent.Executors
+import io.kotest.property.*
+import io.kotest.property.arbitrary.map
+import io.kotest.property.arbitrary.merge
+import kotlinx.serialization.ExperimentalSerializationApi
 
-private val testModule = module {
-    single { Charsets.UTF_8 }
-    single { TestResources() }
-    single<CoroutineDispatcher> { Executors.newSingleThreadExecutor().asCoroutineDispatcher() }
-    single { Clock.systemDefaultZone() }
+val defaultPropTestConfig = PropTestConfig(maxFailure = 3, iterations = 200)
+
+fun PropTestConfig.randomSource() = seed?.random() ?: RandomSource.default()
+
+internal fun <T> Gen<T>.merge(other: Gen<T>) = toArb().merge(other)
+
+internal fun <T, B> Gen<T>.map(action: (T) -> B) = toArb().map(action)
+
+private fun <T> Gen<T>.toArb(): Arb<T> = when (this) {
+    is Arb -> this
+    is Exhaustive -> this.toArb()
 }
 
-val defaultPropTestConfig = PropTestConfig(maxFailure = 3, iterations = 100)
-
-inline fun <reified T, reified G: TestGenerator<T>> Module.mergeGenerators(
-    qualifiers: Iterable<Qualifier>,
-    crossinline block: (TestGenerator<T>) -> G) {
-
-    single {
-        block(
-            TestGeneratorAdapter(
-                CompositeGenerator(
-                    qualifiers.map { get<G>(it) }
-                )
-            )
-        )
-    }
-}
-
+@ExperimentalSerializationApi
+@DelicateKotest
 fun TestConfiguration.bootstrapApplication() = application()
     .also {
         autoClose(object: AutoCloseable {
@@ -50,20 +30,3 @@ fun TestConfiguration.bootstrapApplication() = application()
             }
         })
     }
-
-fun application() = koinApplication {
-
-    val allModules =
-        // external modules
-        primitiveGeneratorsModule +
-                calculatorsModule +
-                // module from this file
-                testModule +
-                kvModule +
-                logModule +
-                encoderModule +
-                indexModule
-
-    modules(allModules)
-}
-

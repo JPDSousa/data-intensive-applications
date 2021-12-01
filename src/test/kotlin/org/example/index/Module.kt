@@ -1,3 +1,11 @@
 package org.example.index
 
-val indexModule = indexFactoriesModule + indexesModule + checkpointableIndexFactoriesModule + checkpointableIndexModule
+import io.kotest.common.DelicateKotest
+import kotlinx.serialization.ExperimentalSerializationApi
+
+@ExperimentalSerializationApi
+@DelicateKotest
+val indexModule = indexFactoriesModule +
+        indexesModule +
+        checkpointableIndexFactoriesModule +
+        checkpointableIndexModule

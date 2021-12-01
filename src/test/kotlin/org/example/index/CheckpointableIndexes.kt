@@ -1,41 +1,29 @@
 package org.example.index
 
-import org.example.TestGenerator
-import org.example.TestInstance
-import org.example.generator.Generator
+import io.kotest.property.Gen
+import org.example.GenWrapper
+import org.example.map
 import org.koin.dsl.module
 
 val checkpointableIndexModule = module {
 
-    single<StringCheckpointableIndexes> { DelegateStringCheckpointableIndexes(
-        GenericCheckpointableIndexes(get<StringCheckpointableIndexFactories>())
-    )}
+    single { StringCheckpointableIndexes(indexFromFactory(
+        get<StringCheckpointableIndexFactories>().gen
+    )) }
 
-    single<LongCheckpointableIndexes> { DelegateLongCheckpointableIndexes(
-        GenericCheckpointableIndexes(get<LongCheckpointableIndexFactories>())
-    )}
-
-}
-
-interface CheckpointableIndexes<K>: TestGenerator<CheckpointableIndex<K>>
-
-interface StringCheckpointableIndexes: CheckpointableIndexes<String>
-
-interface LongCheckpointableIndexes: CheckpointableIndexes<Long>
-
-private class DelegateStringCheckpointableIndexes(private val delegate: CheckpointableIndexes<String>)
-    : StringCheckpointableIndexes, CheckpointableIndexes<String> by delegate
-
-private class DelegateLongCheckpointableIndexes(private val delegate: CheckpointableIndexes<Long>)
-    : LongCheckpointableIndexes, CheckpointableIndexes<Long> by delegate
-
-private class GenericCheckpointableIndexes<K>(private val indexFactories: CheckpointableIndexFactories<K>)
-    : CheckpointableIndexes<K> {
-
-    override fun generate(): Sequence<TestInstance<CheckpointableIndex<K>>> = indexFactories.generate().map {
-        TestInstance("${CheckpointableIndex::class.simpleName} from $it") {
-            it.instance().create("${CheckpointableIndex::class.simpleName} from $it")
-        }
-    }
+    single { LongCheckpointableIndexes(indexFromFactory(
+        get<LongCheckpointableIndexFactories>().gen
+    )) }
 
 }
+
+private fun <K> indexFromFactory(factories: Gen<CheckpointableIndexFactory<K>>) = factories.map {
+    it.create("${CheckpointableIndex::class.simpleName} from $it")
+}
+
+data class StringCheckpointableIndexes(
+    override val gen: Gen<CheckpointableIndex<String>>
+) : GenWrapper<CheckpointableIndex<String>>
+data class LongCheckpointableIndexes(
+    override val gen: Gen<CheckpointableIndex<Long>>
+) : GenWrapper<CheckpointableIndex<Long>>

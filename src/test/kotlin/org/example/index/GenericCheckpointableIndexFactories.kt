@@ -1,153 +1,124 @@
 package org.example.index
 
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.bind
 import kotlinx.coroutines.CoroutineDispatcher
-import org.example.TestGenerator
-import org.example.TestInstance
+import org.example.GenWrapper
 import org.example.TestResources
 import org.example.encoder.Encoder
-import org.example.encoder.Encoders
 import org.example.encoder.Instant2ByteArrayEncoders
 import org.example.encoder.Instant2StringEncoders
-import org.example.generator.Generator
 import org.example.log.ByteArrayLogFactories
-import org.example.log.LogFactories
 import org.example.log.LogFactory
 import org.example.log.StringLogFactories
+import org.example.merge
 import org.koin.dsl.module
 import java.time.Clock
 import java.time.Instant
 
 val checkpointableIndexFactoriesModule = module {
 
-    single<StringCheckpointableIndexFactories> {
-        val stringString: FactoriesConfig<String, String> = FactoriesConfig(
-            get<StringLogFactories>(),
-            get<Instant2StringEncoders>(),
-            get<StringIndexEntryLogFactories>(),
-            get<StringIndexFactories>()
-        )
-        val byteArrayString: FactoriesConfig<ByteArray, String> = FactoriesConfig(
-            get<ByteArrayLogFactories>(),
-            get<Instant2ByteArrayEncoders>(),
-            get<StringIndexEntryLogFactories>(),
-            get<StringIndexFactories>()
+    single { StringCheckpointableIndexFactories(checkpointableIndexFactories(
+        get(),
+        get(),
+        get<StringIndexCheckpointStoreFactories>().gen,
+        get<StringIndexFactories>().gen
+    )) }
+
+    single { LongCheckpointableIndexFactories(checkpointableIndexFactories(
+                get(),
+                get(),
+                get<LongIndexCheckpointStoreFactories>().gen,
+                get<LongIndexFactories>().gen
+    )) }
+
+    single {
+
+        val stringGen = indexCheckpointStoreFactories(
+            get(),
+            get<StringLogFactories>().gen,
+            get<Instant2StringEncoders>().gen,
+            get<StringIndexEntryLogFactories>().gen,
         )
 
-        return@single DelegateStringCheckpointableIndexFactories(
-            GenericCheckpointableIndexFactories(
-                get(),
-                get(),
-                listOf(
-                    stringString,
-                    byteArrayString
-                ),
-                get()
-            )
+        val byteArrayGen = indexCheckpointStoreFactories(
+            get(),
+            get<ByteArrayLogFactories>().gen,
+            get<Instant2ByteArrayEncoders>().gen,
+            get<StringIndexEntryLogFactories>().gen,
         )
+
+        return@single StringIndexCheckpointStoreFactories(stringGen.merge(byteArrayGen))
     }
 
-    single<LongCheckpointableIndexFactories> {
-        val stringString: FactoriesConfig<String, Long> = FactoriesConfig(
-            get<StringLogFactories>(),
-            get<Instant2StringEncoders>(),
-            get<LongIndexEntryLogFactories>(),
-            get<LongIndexFactories>()
-        )
-        val byteArrayString: FactoriesConfig<ByteArray, Long> = FactoriesConfig(
-            get<ByteArrayLogFactories>(),
-            get<Instant2ByteArrayEncoders>(),
-            get<LongIndexEntryLogFactories>(),
-            get<LongIndexFactories>()
+    single {
+
+        val stringGen = indexCheckpointStoreFactories(
+            get(),
+            get<StringLogFactories>().gen,
+            get<Instant2StringEncoders>().gen,
+            get<LongIndexEntryLogFactories>().gen,
         )
 
-        return@single DelegateLongCheckpointableIndexFactories(
-            GenericCheckpointableIndexFactories(
-                get(),
-                get(),
-                listOf(
-                    stringString,
-                    byteArrayString
-                ),
-                get()
-            )
+        val byteArrayGen = indexCheckpointStoreFactories(
+            get(),
+            get<ByteArrayLogFactories>().gen,
+            get<Instant2ByteArrayEncoders>().gen,
+            get<LongIndexEntryLogFactories>().gen,
         )
+
+        return@single LongIndexCheckpointStoreFactories(stringGen.merge(byteArrayGen))
     }
 }
 
-private data class FactoriesConfig<out M, K>(
-    val factories: LogFactories<@UnsafeVariance M>,
-    val instantEncoders: Encoders<Instant, @UnsafeVariance M>,
-    val entryLogFactory: IndexEntryLogFactories<K>,
-    val indexFactories: IndexFactories<K>
-)
+data class StringCheckpointableIndexFactories(
+    override val gen: Gen<CheckpointableIndexFactory<String>>
+) : GenWrapper<CheckpointableIndexFactory<String>>
+data class LongCheckpointableIndexFactories(
+    override val gen: Gen<CheckpointableIndexFactory<Long>>
+) : GenWrapper<CheckpointableIndexFactory<Long>>
 
-interface CheckpointableIndexFactories<K>: TestGenerator<CheckpointableIndexFactory<K>>
+data class StringIndexCheckpointStoreFactories(
+    override val gen: Gen<IndexCheckpointStoreFactory<String>>
+) : GenWrapper<IndexCheckpointStoreFactory<String>>
+data class LongIndexCheckpointStoreFactories(
+    override val gen: Gen<IndexCheckpointStoreFactory<Long>>
+) : GenWrapper<IndexCheckpointStoreFactory<Long>>
 
-interface StringCheckpointableIndexFactories: CheckpointableIndexFactories<String>
+private fun <S, K> indexCheckpointStoreFactories(
+    clock: Clock,
+    metadataFactories: Gen<LogFactory<S>>,
+    instantEncoders: Gen<Encoder<Instant, S>>,
+    entryLogFactories: Gen<LogFactory<IndexEntry<K>>>,
+): Gen<IndexCheckpointStoreFactory<K>> = Arb.bind(
+    metadataFactories,
+    instantEncoders,
+    entryLogFactories
+) { metadataFactory, instantEncoder, entryLogFactory ->
+    LogBackedIndexCheckpointStoreFactory(
+        clock,
+        metadataFactory,
+        instantEncoder,
+        entryLogFactory
+    )
+}
 
-interface LongCheckpointableIndexFactories: CheckpointableIndexFactories<Long>
+private fun <K> checkpointableIndexFactories(
+    resources: TestResources,
+    dispatcher: CoroutineDispatcher,
+    indexCheckpointStoreFactories: Gen<IndexCheckpointStoreFactory<K>>,
+    indexFactories: Gen<IndexFactory<K>>
+): Gen<CheckpointableIndexFactory<K>> = Arb.bind(
+    indexCheckpointStoreFactories,
+    indexFactories
+) { checkpointStoreFactory, indexFactory ->
 
-private class DelegateStringCheckpointableIndexFactories(private val delegate: CheckpointableIndexFactories<String>)
-    : StringCheckpointableIndexFactories, CheckpointableIndexFactories<String> by delegate
-
-private class DelegateLongCheckpointableIndexFactories(private val delegate: CheckpointableIndexFactories<Long>)
-    : LongCheckpointableIndexFactories, CheckpointableIndexFactories<Long> by delegate
-
-private class GenericCheckpointableIndexFactories<K>(private val resources: TestResources,
-                                                     private val dispatcher: CoroutineDispatcher,
-                                                     private val configs: Iterable<FactoriesConfig<Any, K>>,
-                                                     private val clock: Clock
-): CheckpointableIndexFactories<K> {
-
-    private fun createCheckpointableIndex(checkpointStoreFactory: IndexCheckpointStoreFactory<K>,
-                                          indexFactory: IndexFactory<K>) = CheckpointableIndexFactory(
+    CheckpointableIndexFactory(
         checkpointStoreFactory,
         indexFactory,
         resources.allocateTempDir("index-string-"),
         10_000,
         dispatcher
     )
-
-    private fun <S> createCheckpointStoreFactory(metadataLogFactory: LogFactory<S>,
-                                                 instantSerializer: TestInstance<Encoder<Instant, S>>,
-                                                 indexLogFactory: LogFactory<IndexEntry<K>>) =
-        LogBackedIndexCheckpointStoreFactory(
-            clock,
-            metadataLogFactory,
-            instantSerializer.instance(),
-            indexLogFactory
-        )
-
-    override fun generate(): Sequence<TestInstance<CheckpointableIndexFactory<K>>> = sequence {
-
-        for (config in configs) {
-
-            for (factory in config.factories) {
-
-                for (instantEncoder in config.instantEncoders) {
-
-                    for (entryLogFactory in config.entryLogFactory) {
-
-                        for (indexFactory in config.indexFactories) {
-
-                            val instanceName = "${CheckpointableIndexFactory::class.simpleName} with $factory, " +
-                                    "$instantEncoder, $entryLogFactory and $indexFactory"
-                            yield(TestInstance(instanceName) {
-
-                                createCheckpointableIndex(
-                                    createCheckpointStoreFactory(
-                                        factory.instance(),
-                                        instantEncoder,
-                                        entryLogFactory.instance()
-                                    ),
-                                    indexFactory.instance()
-                                )
-                            })
-                        }
-                    }
-                }
-
-            }
-        }
-    }
 }

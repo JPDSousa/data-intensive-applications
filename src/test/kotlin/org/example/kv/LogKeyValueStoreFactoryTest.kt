@@ -9,14 +9,13 @@ import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import org.example.DataEntry
-import org.example.TestInstance
 import org.example.defaultPropTestConfig
 import org.example.log.LogFactory
 import org.example.toMap
 
 fun <K, V> logKeyValueStoreFactoryTests(
-    gen: Gen<TestInstance<LogKeyValueStoreFactory<K, V>>>,
-    logFactories: Gen<TestInstance<LogFactory<Map.Entry<K, V>>>>,
+    gen: Gen<LogKeyValueStoreFactory<K, V>>,
+    logFactories: Gen<LogFactory<Map.Entry<K, V>>>,
     entryGen: Arb<DataEntry<K, V>>,
     config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
@@ -26,10 +25,7 @@ fun <K, V> logKeyValueStoreFactoryTests(
         .toMap()
 
     should("create should load file content") {
-        checkAll(config, gen, logFactories) { lKVInstance, logFactoryInstance ->
-
-            val logFactory = logFactoryInstance.instance()
-            val factory = lKVInstance.instance()
+        checkAll(config, gen, logFactories) { factory, logFactory ->
 
             val expectedEntries = nextEntries(100)
 

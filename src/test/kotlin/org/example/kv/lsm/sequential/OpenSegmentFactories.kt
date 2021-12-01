@@ -1,65 +1,47 @@
 package org.example.kv.lsm.sequential
 
-import org.example.TestInstance
-import org.example.kv.LogKeyValueStoreFactories
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.bind
+import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.LongByteArrayLogKeyValueStoreFactories
 import org.example.kv.StringStringLogKeyValueStoreFactories
-import org.example.kv.lsm.*
-import org.example.log.LogFactories
+import org.example.kv.lsm.LongByteArrayOpenSegmentFactories
+import org.example.kv.lsm.SegmentDirectories
+import org.example.kv.lsm.SegmentDirectory
+import org.example.kv.lsm.StringStringOpenSegmentFactories
+import org.example.log.LogFactory
 import org.example.log.LongByteArrayMapEntryLogFactories
 import org.example.log.StringStringMapEntryLogFactories
 import org.koin.dsl.module
 
-private class GenericOpenSegmentFactories<K, V>(
-    private val logFactories: LogFactories<Map.Entry<K, V>>,
-    private val segmentKVFactories: LogKeyValueStoreFactories<K, V>,
-    private val segmentDirectories: SegmentDirectories
-): OpenSegmentFactories<K, V> {
-
-    override fun generate(): Sequence<TestInstance<OpenSegmentFactory<K, V>>> = sequence {
-
-        for (segmentDirectory in segmentDirectories) {
-
-            for (logFactory in logFactories) {
-
-                for (segmentKVFactory in segmentKVFactories) {
-
-                    yield(TestInstance("${SequentialOpenSegmentFactory::class.simpleName} with $segmentDirectory, $logFactory, " +
-                            "$segmentKVFactory") {
-
-                        SequentialOpenSegmentFactory(
-                            segmentDirectory.instance(),
-                            logFactory.instance(),
-                            segmentKVFactory.instance(),
-                        )
-                    })
-                }
-            }
-        }
-
-    }
-}
+private fun <K, V> sequentialOpenSegmentFactories(
+    logFactories: Gen<LogFactory<Map.Entry<K, V>>>,
+    segmentKVFactories: Gen<LogKeyValueStoreFactory<K, V>>,
+    segmentDirectories: Gen<SegmentDirectory>
+) = Arb.bind(
+    segmentDirectories,
+    logFactories,
+    segmentKVFactories,
+    ::SequentialOpenSegmentFactory
+)
 
 val sequentialOpenSegmentFactories = module {
 
-    singleSequentialQ<StringStringOpenSegmentFactories> {
-        DelegateStringStringOpenSegmentFactories(
-            GenericOpenSegmentFactories(
-                get<StringStringMapEntryLogFactories>(),
-                get<StringStringLogKeyValueStoreFactories>(),
-                get(),
-            )
+    singleSequentialQ { StringStringOpenSegmentFactories(
+        sequentialOpenSegmentFactories(
+            get<StringStringMapEntryLogFactories>().gen,
+            get<StringStringLogKeyValueStoreFactories>().gen,
+            get<SegmentDirectories>().gen,
         )
-    }
+    ) }
 
-    singleSequentialQ<LongByteArrayOpenSegmentFactories> {
-        DelegateLongByteArrayOpenSegmentFactories(
-            GenericOpenSegmentFactories(
-                get<LongByteArrayMapEntryLogFactories>(),
-                get<LongByteArrayLogKeyValueStoreFactories>(),
-                get(),
-            )
+    singleSequentialQ { LongByteArrayOpenSegmentFactories(
+        sequentialOpenSegmentFactories(
+            get<LongByteArrayMapEntryLogFactories>().gen,
+            get<LongByteArrayLogKeyValueStoreFactories>().gen,
+            get<SegmentDirectories>().gen,
         )
-    }
+    ) }
 
 }

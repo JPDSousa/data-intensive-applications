@@ -1,144 +1,90 @@
 package org.example.index
 
+import io.kotest.common.DelicateKotest
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.bind
+import io.kotest.property.arbitrary.distinct
+import io.kotest.property.arbitrary.map
+import io.kotest.property.arbitrary.string
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.serializer
-import org.example.TestGenerator
-import org.example.TestGeneratorAdapter
-import org.example.TestInstance
-import org.example.encoder.Encoders
-import org.example.encoder.ProtobufEncoderGenerator
-import org.example.encoder.StringEncoderGenerator
-import org.example.generator.CompositeGenerator
-import org.example.log.*
+import org.example.GenWrapper
+import org.example.encoder.Encoder
+import org.example.encoder.jsonEncoderGen
+import org.example.encoder.protobufEncoderGen
+import org.example.log.ByteArrayLogFactories
+import org.example.log.LogFactory
+import org.example.log.StringLogFactories
+import org.example.log.logEncoderFactories
+import org.example.merge
+import org.koin.core.module.Module
 import org.koin.dsl.module
-import java.util.concurrent.atomic.AtomicLong
 
+@DelicateKotest
+@ExperimentalSerializationApi
 val indexesModule = module {
 
-    single<StringIndexEntryLogFactories> {
-        DelegateString(composite(
-            listOf(
-                LogEncoderFactories(
-                    get<StringStringEncoders>(),
-                    get<StringLogFactories>()
-                ),
-                LogEncoderFactories(
-                    get<StringByteArrayEncoders>(),
-                    get<ByteArrayLogFactories>()
-                )
-            )
-        ))
-    }
-
-    single<LongIndexEntryLogFactories> {
-        DelegateLong(composite(
-            listOf(
-                LogEncoderFactories(
-                    get<LongStringEncoders>(),
-                    get<StringLogFactories>()
-                ),
-                LogEncoderFactories(
-                    get<LongByteArrayEncoders>(),
-                    get<ByteArrayLogFactories>()
-                )
-            )
-        ))
-    }
-
-    single<StringStringEncoders> {
-        DelegateStringStringEncoders(
-            StringEncoderGenerator(serializer())
+    single { StringIndexEntryLogFactories(
+        logEncoderFactories(get<StringStringEncoders>().gen, get<StringLogFactories>().gen).merge(
+            logEncoderFactories(get<StringByteArrayEncoders>().gen, get<ByteArrayLogFactories>().gen)
         )
-    }
+    ) }
 
-    single<StringByteArrayEncoders> {
-        DelegateStringByteArrayEncoders(
-            ProtobufEncoderGenerator(serializer())
+    single { LongIndexEntryLogFactories(
+        logEncoderFactories(get<LongStringEncoders>().gen, get<StringLogFactories>().gen).merge(
+            logEncoderFactories(get<LongByteArrayEncoders>().gen, get<ByteArrayLogFactories>().gen)
         )
-    }
+    ) }
 
-    single<LongStringEncoders> {
-        DelegateLongStringEncoders(
-            StringEncoderGenerator(serializer())
-        )
-    }
+    single { StringStringEncoders(jsonEncoderGen(serializer())) }
+    single { StringByteArrayEncoders(protobufEncoderGen(serializer())) }
+    single { LongStringEncoders(jsonEncoderGen(serializer())) }
+    single { LongByteArrayEncoders(protobufEncoderGen(serializer())) }
 
-    single<LongByteArrayEncoders> {
-        DelegateLongByteArrayEncoders(
-            ProtobufEncoderGenerator(serializer())
-        )
+    registerIndices<String, StringIndexFactories, StringIndices> { StringIndices(it) }
+    registerIndices<Long, LongIndexFactories, LongIndices> { LongIndices(it) }
+}
+
+@DelicateKotest
+private inline fun <K, reified GF, reified GK> Module.registerIndices(
+    crossinline genWrapperSupplier: (Gen<Index<K>>) -> GK
+) where GF : GenWrapper<IndexFactory<K>>,
+        GK: GenWrapper<Index<K>> {
+    single { genWrapperSupplier(indexFromFactory(get<GF>().gen)) }
+    for (indexQ in indicesQ) {
+        single(indexQ) { genWrapperSupplier(indexFromFactory(get<GF>(indexQ).gen)) }
     }
 }
 
-private fun <K> composite(factories: Iterable<LogFactories<IndexEntry<K>>>) = GenericDelegate(
-    TestGeneratorAdapter(
-        CompositeGenerator(
-            factories
-        )
-    )
-)
-
-interface IndexEntryLogFactories<K>: LogFactories<IndexEntry<K>>
-interface StringIndexEntryLogFactories: IndexEntryLogFactories<String>
-interface LongIndexEntryLogFactories: IndexEntryLogFactories<Long>
-
-interface StringStringEncoders: Encoders<IndexEntry<String>, String>
-interface StringByteArrayEncoders: Encoders<IndexEntry<String>, ByteArray>
-interface LongStringEncoders: Encoders<IndexEntry<Long>, String>
-interface LongByteArrayEncoders: Encoders<IndexEntry<Long>, ByteArray>
-
-private class DelegateString(private val delegate: IndexEntryLogFactories<String>):
-    StringIndexEntryLogFactories, IndexEntryLogFactories<String> by delegate
-
-private class DelegateLong(private val delegate: IndexEntryLogFactories<Long>):
-    LongIndexEntryLogFactories, IndexEntryLogFactories<Long> by delegate
-
-private class DelegateStringStringEncoders(private val delegate: Encoders<IndexEntry<String>, String>)
-    : StringStringEncoders, Encoders<IndexEntry<String>, String> by delegate
-
-private class DelegateStringByteArrayEncoders(private val delegate: Encoders<IndexEntry<String>, ByteArray>)
-    : StringByteArrayEncoders, Encoders<IndexEntry<String>, ByteArray> by delegate
-
-private class DelegateLongStringEncoders(private val delegate: Encoders<IndexEntry<Long>, String>)
-    : LongStringEncoders, Encoders<IndexEntry<Long>, String> by delegate
-
-private class DelegateLongByteArrayEncoders(private val delegate: Encoders<IndexEntry<Long>, ByteArray>)
-    : LongByteArrayEncoders, Encoders<IndexEntry<Long>, ByteArray> by delegate
-
-
-
-private class GenericDelegate<K>(private val downstreamFactories: TestGenerator<LogFactory<IndexEntry<K>>>)
-    : IndexEntryLogFactories<K> {
-
-    override fun generate(): Sequence<TestInstance<LogFactory<IndexEntry<K>>>> = downstreamFactories.generate()
+private val indexInstanceName = "${Index::class.simpleName} from ${HashIndexFactory::class.simpleName}"
+@DelicateKotest
+private val indexNameArb = Arb.string().distinct().map { "$indexInstanceName (${it})"}
+@DelicateKotest
+private fun <K> indexFromFactory(gen: Gen<IndexFactory<K>>) = Arb.bind(gen, indexNameArb) { factory, indexName ->
+    factory.create(indexName)
 }
 
-class Indexes {
+data class StringIndexEntryLogFactories(
+    override val gen: Gen<LogFactory<IndexEntry<String>>>
+) : GenWrapper<LogFactory<IndexEntry<String>>>
+data class LongIndexEntryLogFactories(
+    override val gen: Gen<LogFactory<IndexEntry<Long>>>
+) : GenWrapper<LogFactory<IndexEntry<Long>>>
 
-    private val generator = AtomicLong()
+data class StringStringEncoders(
+    override val gen: Gen<Encoder<IndexEntry<String>, String>>
+) : GenWrapper<Encoder<IndexEntry<String>, String>>
+data class StringByteArrayEncoders(
+    override val gen: Gen<Encoder<IndexEntry<String>, ByteArray>>
+) : GenWrapper<Encoder<IndexEntry<String>, ByteArray>>
+data class LongStringEncoders(
+    override val gen: Gen<Encoder<IndexEntry<Long>, String>>
+) : GenWrapper<Encoder<IndexEntry<Long>, String>>
+data class LongByteArrayEncoders(
+    override val gen: Gen<Encoder<IndexEntry<Long>, ByteArray>>
+) : GenWrapper<Encoder<IndexEntry<Long>, ByteArray>>
 
-    fun <K> hashIndexes(): TestGenerator<Index<K>> {
+data class StringIndices(override val gen: Gen<Index<String>>) : GenWrapper<Index<String>>
+data class LongIndices(override val gen: Gen<Index<Long>>) : GenWrapper<Index<Long>>
 
-        val factory = HashIndexFactory<K>()
-        val instanceName = "${Index::class.simpleName} from ${HashIndexFactory::class.simpleName}"
-
-        return object: TestGenerator<Index<K>> {
-
-            override fun generate() = sequenceOf(TestInstance(instanceName) {
-                factory.create("$instanceName (${generator.getAndIncrement()})")
-            })
-        }
-    }
-
-    fun <K: Comparable<K>> treeIndexes(): TestGenerator<Index<K>> {
-
-        val factory = TreeIndexFactory<K>()
-        val instanceName = "${Index::class.simpleName} from ${TreeIndexFactory::class.simpleName}"
-
-        return object: TestGenerator<Index<K>> {
-            override fun generate(): Sequence<TestInstance<Index<K>>> = sequenceOf(TestInstance(instanceName) {
-                factory.create("$instanceName (${generator.getAndIncrement()})")
-            })
-
-        }
-    }
-}

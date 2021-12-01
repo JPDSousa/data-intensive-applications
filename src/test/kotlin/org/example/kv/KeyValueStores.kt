@@ -1,59 +1,38 @@
 package org.example.kv
 
-import org.example.TestGenerator
-import org.example.TestInstance
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.bind
+import org.example.GenWrapper
 import org.example.kv.lsm.*
+import org.koin.core.module.Module
 import org.koin.dsl.module
 
 internal val keyValueStoresModule = module {
 
-    single<ByteArrayKeyValueStores> {
-        ByteArrayDelegate(
-            GenericKeyValueStores(
-                get<LongByteArraySegmentManagers>(),
-                get<LongByteArrayLSMKeyValueStoreFactories>()
-            )
-        )
-    }
-
-    single<StringStringKeyValueStores> {
-        StringDelegate(
-            GenericKeyValueStores(
-                get<StringStringSegmentManagers>(),
-                get<StringStringLSMKeyValueStoreFactories>()
-            )
-        )
-    }
+    keyValueStores<Long, ByteArray, LongByteArraySegmentManagers, LongByteArrayLSMKeyValueStoreFactories, LongByteArrayKeyValueStores>(
+        ::LongByteArrayKeyValueStores
+    )
+    keyValueStores<String, String, StringStringSegmentManagers, StringStringLSMKeyValueStoreFactories, StringStringKeyValueStores>(
+        ::StringStringKeyValueStores
+    )
 }
 
-interface KeyValueStores<K, V>: TestGenerator<KeyValueStore<K, V>>
-interface ByteArrayKeyValueStores: KeyValueStores<Long, ByteArray>
-interface StringStringKeyValueStores: KeyValueStores<String, String>
+data class LongByteArrayKeyValueStores(
+    override val gen: Gen<KeyValueStore<Long, ByteArray>>
+) : GenWrapper<KeyValueStore<Long, ByteArray>>
+data class StringStringKeyValueStores(
+    override val gen: Gen<KeyValueStore<String, String>>
+) : GenWrapper<KeyValueStore<String, String>>
 
-private class ByteArrayDelegate(private val delegate: KeyValueStores<Long, ByteArray>):
-    ByteArrayKeyValueStores, KeyValueStores<Long, ByteArray> by delegate
-
-private class StringDelegate(private val delegate: KeyValueStores<String, String>):
-    StringStringKeyValueStores, KeyValueStores<String, String> by delegate
-
-private class GenericKeyValueStores<K, V>(private val segmentManagers: SegmentManagers<K, V>,
-                                          private val factories: LSMKeyValueStoreFactories<K, V>
-): KeyValueStores<K, V> {
-
-    override fun generate(): Sequence<TestInstance<KeyValueStore<K, V>>> = sequence {
-
-        for (factory in factories) {
-
-            for (segmentManager in segmentManagers) {
-
-                val instanceName = "${LSMKeyValueStore::class.simpleName} created from $factory using $segmentManager"
-                yield(TestInstance(instanceName) {
-                    factory.instance().createLSMKeyValueStore(segmentManager.instance())
-                })
-            }
-        }
-    }
+private inline fun <K, V, reified SM, reified F, reified R> Module.keyValueStores(
+    crossinline ins: (Gen<KeyValueStore<K, V>>) -> R
+) where SM: GenWrapper<SegmentManager<K, V>>,
+        R: GenWrapper<KeyValueStore<K, V>>,
+        F: GenWrapper<LSMKeyValueStoreFactory<K, V>> {
+    single { ins(Arb.bind(get<SM>().gen, get<F>().gen) { segmentManager, factory ->
+        factory.createLSMKeyValueStore(segmentManager)
+    }) }
 }
-
 
 const val segmentThreshold: Long = 1024L * 1024L

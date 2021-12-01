@@ -11,26 +11,23 @@ import io.kotest.property.Gen
 import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
-import org.example.TestInstance
 import org.example.defaultPropTestConfig
 
 fun <T> logTests(
-    gen: Gen<TestInstance<Log<T>>>,
+    gen: Gen<Log<T>>,
     valueGen: Arb<T>,
     config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
 
     should("append on empty file should return 0") {
-        checkAll(config, gen) { testSpec ->
-            val log = testSpec.instance()
+        checkAll(config, gen) { log ->
             val initialSize = log.byteLength
             log.append(valueGen.next()) shouldBe initialSize
         }
     }
 
     should("append should sum offset") {
-        checkAll(config, gen) { testSpec ->
-            val log = testSpec.instance()
+        checkAll(config, gen) { log ->
             val firstOffset = log.append(valueGen.next())
             val secondOffset = log.append(valueGen.next())
 
@@ -39,9 +36,7 @@ fun <T> logTests(
     }
 
     should("single append should be readable") {
-        checkAll(config, gen) { testSpec ->
-            val log = testSpec.instance()
-
+        checkAll(config, gen) { log ->
             val initialSize = log.useEntries { it.toList() }.size
 
             val expected = valueGen.next()
@@ -84,29 +79,25 @@ fun <T> logTests(
     }
 
     should("multiple appends should be readable") {
-        checkAll(config, gen) { testInstance ->
-            val log = testInstance.instance()
+        checkAll(config, gen) { log ->
             multipleReadWriteCycle(log) { values -> values.map { log.append(it) }}
         }
     }
 
     should("atomic multiple appends (appendAll) should be readable") {
-        checkAll(config, gen) { testInstance ->
-            val log = testInstance.instance()
+        checkAll(config, gen) { log ->
             multipleReadWriteCycle(log) { values -> log.appendAll(values) }
         }
     }
 
     should("empty appendAll should not change structure") {
-        checkAll(config, gen) { testInstance ->
-            val log = testInstance.instance()
+        checkAll(config, gen) { log ->
             multipleReadWriteCycle(log, 0) { values -> log.appendAll(values) }
         }
     }
 
     should("clear removes all entries") {
-        checkAll(config, gen) { testInstance ->
-            val log = testInstance.instance()
+        checkAll(config, gen) { log ->
             log.clear()
             log.byteLength shouldBe 0L
             log.useEntries { it.toList() } should beEmpty()

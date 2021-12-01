@@ -1,5 +1,6 @@
 package org.example.kv.lsm.sstable
 
+import io.kotest.common.DelicateKotest
 import io.kotest.core.spec.style.ShouldSpec
 import io.kotest.core.spec.style.shouldSpec
 import io.kotest.matchers.maps.shouldHaveSize
@@ -9,7 +10,7 @@ import io.kotest.property.Gen
 import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
-import org.example.TestInstance
+import kotlinx.serialization.ExperimentalSerializationApi
 import org.example.bootstrapApplication
 import org.example.defaultPropTestConfig
 import org.example.kv.Tombstone
@@ -18,21 +19,18 @@ import org.example.kv.lsm.SegmentDirectory
 import org.example.possiblyArrayEquals
 
 fun <K: Comparable<K>, V> memTableFactoryTests(
-    gen: Gen<TestInstance<MemTableFactory<K, V>>>,
-    segmentDirectories: Gen<TestInstance<SegmentDirectory>>,
+    gen: Gen<MemTableFactory<K, V>>,
+    segmentDirectories: Gen<SegmentDirectory>,
     keyGen: Arb<K>,
     valueGen: Arb<V>,
     config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
 
     should("be recoverable") {
-        checkAll(config, gen, segmentDirectories) { memTableSpec, segmentDirectorySpec ->
+        checkAll(config, gen, segmentDirectories) { memTableFactory, segmentDirectory ->
 
             val segmentId = 123
             val expectedEntries = (0..100).associate { Pair(keyGen.next(), valueGen.next()) }
-
-            val segmentDirectory = segmentDirectorySpec.instance()
-            val memTableFactory = memTableSpec.instance()
 
             val memTable = memTableFactory.createMemTable(segmentDirectory, segmentId)
             memTable.putAll(expectedEntries)
@@ -51,6 +49,8 @@ fun <K: Comparable<K>, V> memTableFactoryTests(
     }
 }
 
+@DelicateKotest
+@ExperimentalSerializationApi
 internal class StringStringMemTableFactorySpec: ShouldSpec({
 
     val application = bootstrapApplication()
@@ -58,8 +58,8 @@ internal class StringStringMemTableFactorySpec: ShouldSpec({
     val segmentDirectories: SegmentDirectories = application.koin.get()
 
     include(memTableFactoryTests(
-        factories.toArb(),
-        segmentDirectories.toArb(),
+        factories.gen,
+        segmentDirectories.gen,
         Arb.string(),
         Arb.string()
             // TODO fix the harcoded filter. This should be specific to the TestInstance we're using
@@ -67,6 +67,8 @@ internal class StringStringMemTableFactorySpec: ShouldSpec({
     ))
 })
 
+@DelicateKotest
+@ExperimentalSerializationApi
 internal class LongByteArrayMemTableFactorySpec: ShouldSpec({
 
     val application = bootstrapApplication()
@@ -74,8 +76,8 @@ internal class LongByteArrayMemTableFactorySpec: ShouldSpec({
     val segmentDirectories: SegmentDirectories = application.koin.get()
 
     include(memTableFactoryTests(
-        factories.toArb(),
-        segmentDirectories.toArb(),
+        factories.gen,
+        segmentDirectories.gen,
         Arb.long(),
         Arb.byteArray(Arb.int(0..100), Arb.byte())
             // TODO fix the harcoded filter. This should be specific to the TestInstance we're using

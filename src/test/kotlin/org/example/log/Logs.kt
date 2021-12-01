@@ -1,71 +1,49 @@
 package org.example.log
 
-import org.example.TestGenerator
-import org.example.TestInstance
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.*
+import io.kotest.property.exhaustive.exhaustive
+import org.example.GenWrapper
 import org.example.TestResources
-import org.example.generator.ByteArrayGenerator
-import org.example.generator.Generator
-import org.example.generator.StringGenerator
 import org.koin.dsl.module
 
 val logsModule = module {
 
-    single<StringLogs>(lineLogQ) {
-        StringLogsDelegate(
-            LogGenerator(
-                get(),
-                get<StringLogFactories>(lineLogQ),
-                get<StringGenerator>()
-            )
-        )
-    }
+    single(lineLogQ) { StringLogs(logs(
+        get(),
+        get<StringLogFactories>(lineLogQ).gen,
+        Arb.string()
+    )) }
 
-    single<BinaryLogs>(binaryLogQ) {
-        BinaryLogsDelegate(
-            LogGenerator(
-                get(),
-                get<ByteArrayLogFactories>(binaryLogQ),
-                get<ByteArrayGenerator>()
-            )
-        )
-    }
+    single(binaryLogQ) { BinaryLogs(logs(
+        get(),
+        get<ByteArrayLogFactories>(binaryLogQ).gen,
+        Arb.byteArray((1..10).toList().exhaustive(), Arb.byte())
+    ))}
 
 }
 
-interface StringLogs: TestGenerator<Log<String>>
-interface BinaryLogs: TestGenerator<Log<ByteArray>>
+data class StringLogs(
+    override val gen: Gen<Log<String>>
+) : GenWrapper<Log<String>>
+data class BinaryLogs(
+    override val gen: Gen<Log<ByteArray>>
+) : GenWrapper<Log<ByteArray>>
 
-private class StringLogsDelegate(private val generator: LogGenerator<String>): StringLogs,
-    TestGenerator<Log<String>> by generator
+private val testableSizes = listOf(0, 1, 10).exhaustive()
 
-private class BinaryLogsDelegate(private val generator: LogGenerator<ByteArray>): BinaryLogs,
-    TestGenerator<Log<ByteArray>> by generator
-
-
-class LogGenerator<T>(
-    private val resources: TestResources,
-    private val factories: LogFactories<T>,
-    private val valueGenerator: Generator<T>
-): TestGenerator<Log<T>> {
-
-    override fun generate(): Sequence<TestInstance<Log<T>>> = factories.generate().flatMap {
-        sequence {
-            for (size in testableSizes) {
-                yield(TestInstance("${Log::class.simpleName} with initial size $size and $it") {
-                    // TODO candidate for function extraction
-                    it.instance().create(resources.allocateTempLogFile())
-                        .also { log ->
-                            valueGenerator.generate()
-                                .take(size)
-                                .forEach { log.append(it) }
-                        }
-                })
-            }
+private fun <T> logs(
+    resources: TestResources,
+    factories: Gen<LogFactory<T>>,
+    valueGenerator: Arb<T>
+) = Arb.bind(
+    factories,
+    testableSizes
+) { factory, size ->
+    factory.create(resources.allocateTempLogFile())
+        .also { log ->
+            (0..size).map { valueGenerator.next() }
+                .forEach(log::append)
         }
-    }
-
-    companion object {
-
-        val testableSizes = listOf(0, 1, 10)
-    }
 }

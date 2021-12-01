@@ -9,42 +9,45 @@ import io.kotest.property.Gen
 import io.kotest.property.PropTestConfig
 import io.kotest.property.arbitrary.*
 import io.kotest.property.checkAll
-import org.example.TestInstance
+import kotlinx.serialization.ExperimentalSerializationApi
 import org.example.bootstrapApplication
 import org.example.defaultPropTestConfig
 
+@DelicateKotest
+@ExperimentalSerializationApi
 internal class CheckpointableStringIndexSpec: ShouldSpec({
 
     val application = bootstrapApplication()
-    val indexes: StringCheckpointableIndexes = application.koin.get()
+    val indexes = application.koin.get<StringCheckpointableIndexes>().gen
 
     include(indexTests(
-        indexes.toArb(),
+        indexes,
         Arb.string()
     ))
 })
 
+@DelicateKotest
+@ExperimentalSerializationApi
 internal class CheckpointableLongIndexSpec: ShouldSpec({
 
     val application = bootstrapApplication()
-    val indexes: LongCheckpointableIndexes = application.koin.get()
+    val indexes = application.koin.get<LongCheckpointableIndexes>().gen
 
     include(indexTests(
-        indexes.toArb(),
+        indexes,
         Arb.long()
     ))
 })
 
 @DelicateKotest
 fun <K> checkpointableIndexFactoryTests(
-    factories: Gen<TestInstance<CheckpointableIndexFactory<K>>>,
+    factories: Gen<CheckpointableIndexFactory<K>>,
     keyGen: Arb<K>,
     config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {
     
     should("be recoverable") {
-        checkAll(config, factories) { spec ->
-            val factory = spec.instance()
+        checkAll(config, factories) { factory ->
             val distinctKeyGen = keyGen.distinct()
             val expected = (1L..100L).map { IndexEntry(distinctKeyGen.next(), it) }
 
@@ -65,26 +68,28 @@ fun <K> checkpointableIndexFactoryTests(
     }
 }
 
+@ExperimentalSerializationApi
 @DelicateKotest
 internal class CheckpointableStringIndexFactorySpec: ShouldSpec({
 
     val application = bootstrapApplication()
-    val indexes: StringCheckpointableIndexFactories = application.koin.get()
+    val indexes = application.koin.get<StringCheckpointableIndexFactories>().gen
 
     include(checkpointableIndexFactoryTests(
-        indexes.toArb(),
+        indexes,
         Arb.string(codepoints = Codepoint.alphanumeric())
     ))
 })
 
+@ExperimentalSerializationApi
 @DelicateKotest
 internal class CheckpointableLongIndexFactorySpec: ShouldSpec({
 
     val application = bootstrapApplication()
-    val indexes: LongCheckpointableIndexFactories = application.koin.get()
+    val indexes = application.koin.get<LongCheckpointableIndexFactories>().gen
 
     include(checkpointableIndexFactoryTests(
-        indexes.toArb(),
+        indexes,
         Arb.long()
     ))
 })

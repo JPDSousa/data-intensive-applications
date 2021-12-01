@@ -1,8 +1,11 @@
 package org.example.log
 
-import org.example.TestGenerator
-import org.example.TestInstance
-import org.example.encoder.Encoders
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.bind
+import io.kotest.property.exhaustive.exhaustive
+import org.example.GenWrapper
+import org.example.encoder.Encoder
 import org.example.encoder.LongByteArrayMapEntry2StringEncoders
 import org.example.encoder.StringStringMapEntry2StringEncoders
 import org.koin.dsl.module
@@ -10,86 +13,46 @@ import org.koin.dsl.module
 
 val logFactoriesModule = module {
 
-    single<StringLogFactories>(lineLogQ) {
-        LineLogFactories()
-    }
+    single(lineLogQ) { StringLogFactories(listOf(LineLogFactory).exhaustive()) }
 
-    single<StringLogFactories> {
-        get(lineLogQ)
-    }
+    single<StringLogFactories> { get(lineLogQ) }
 
-    single<ByteArrayLogFactories>(binaryLogQ) { BinaryLogFactories() }
+    single(binaryLogQ) { ByteArrayLogFactories(listOf(BinaryLogFactory).exhaustive()) }
 
-    single<ByteArrayLogFactories> {
-        get(binaryLogQ)
-    }
+    single<ByteArrayLogFactories> { get(binaryLogQ) }
 
-    single<StringStringMapEntryLogFactories> {
-        StringStringMapEntryLogFactoriesDelegate(
-            LogEncoderFactories(
-                get<StringStringMapEntry2StringEncoders>(),
-                get<StringLogFactories>()
-            )
+    single { StringStringMapEntryLogFactories(
+        logEncoderFactories(
+            get<StringStringMapEntry2StringEncoders>().gen,
+            get<StringLogFactories>().gen
         )
-    }
+    ) }
 
-    single<LongByteArrayMapEntryLogFactories> {
-        LongByteArrayMapEntryLogFactoriesDelegate(
-            LogEncoderFactories(
-                get<LongByteArrayMapEntry2StringEncoders>(),
-                get<StringLogFactories>()
-            )
+    single { LongByteArrayMapEntryLogFactories(
+        logEncoderFactories(
+            get<LongByteArrayMapEntry2StringEncoders>().gen,
+            get<StringLogFactories>().gen
         )
-    }
+    ) }
 }
 
-interface LogFactories<T>: TestGenerator<LogFactory<T>>
-interface StringLogFactories: LogFactories<String>
-interface ByteArrayLogFactories: LogFactories<ByteArray>
-interface StringStringMapEntryLogFactories: LogFactories<Map.Entry<String, String>>
-interface LongByteArrayMapEntryLogFactories: LogFactories<Map.Entry<Long, ByteArray>>
+data class StringLogFactories(
+    override val gen: Gen<LogFactory<String>>
+) : GenWrapper<LogFactory<String>>
+data class ByteArrayLogFactories(
+    override val gen: Gen<LogFactory<ByteArray>>
+) : GenWrapper<LogFactory<ByteArray>>
 
-private class StringStringMapEntryLogFactoriesDelegate(private val delegate: LogFactories<Map.Entry<String, String>>)
-    : StringStringMapEntryLogFactories, LogFactories<Map.Entry<String, String>> by delegate
+data class StringStringMapEntryLogFactories(
+    override val gen: Gen<LogFactory<Map.Entry<String, String>>>
+) : GenWrapper<LogFactory<Map.Entry<String, String>>>
+data class LongByteArrayMapEntryLogFactories(
+    override val gen: Gen<LogFactory<Map.Entry<Long, ByteArray>>>
+) : GenWrapper<LogFactory<Map.Entry<Long, ByteArray>>>
 
-private class LongByteArrayMapEntryLogFactoriesDelegate(private val delegate: LogFactories<Map.Entry<Long, ByteArray>>)
-    : LongByteArrayMapEntryLogFactories, LogFactories<Map.Entry<Long, ByteArray>> by delegate
-
-private class LineLogFactories: StringLogFactories {
-
-    override fun generate() = sequenceOf(
-        TestInstance("${LineLogFactory::class.simpleName}") {
-            LineLogFactory()
-        }
-    )
-
-}
-
-private class BinaryLogFactories: ByteArrayLogFactories {
-
-    override fun generate() = sequenceOf(
-        TestInstance("${BinaryLogFactory::class.simpleName}") {
-            BinaryLogFactory()
-        }
-    )
-
-}
-
-class LogEncoderFactories<S, T>(
-    private val encoders: Encoders<S, T>,
-    private val factories: LogFactories<T>
-): LogFactories<S> {
-
-    override fun generate(): Sequence<TestInstance<LogFactory<S>>> = sequence {
-
-        for (factory in factories) {
-            for (encoder in encoders) {
-
-                yield(TestInstance("${LogEncoderFactory::class.simpleName} with $factory and $encoder") {
-                    LogEncoderFactory(factory.instance(), encoder.instance())
-                })
-            }
-
-        }
-    }
+fun <S, T> logEncoderFactories(
+    encoders: Gen<Encoder<S, T>>,
+    factories: Gen<LogFactory<T>>
+): Gen<LogFactory<S>> = Arb.bind(encoders, factories) { encoder, factory ->
+    LogEncoderFactory(factory, encoder)
 }

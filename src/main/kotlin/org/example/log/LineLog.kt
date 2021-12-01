@@ -147,7 +147,7 @@ private fun RandomAccessFile.generateSequenceWithOffset() = generateSequence {
 }.asStream().onClose { this.close() }
 
 
-class LineLogFactory: LogFactory<String> {
+object LineLogFactory: LogFactory<String> {
 
     override fun create(logPath: Path): Log<String> {
 

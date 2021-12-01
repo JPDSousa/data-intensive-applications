@@ -140,7 +140,7 @@ private fun <T> Path.writeOnly(block: (OutputStream) -> T): T = BufferedOutputSt
     newOutputStream(this, CREATE, APPEND))
     .use(block)
 
-class BinaryLogFactory: LogFactory<ByteArray> {
+object BinaryLogFactory: LogFactory<ByteArray> {
 
     override fun create(logPath: Path): Log<ByteArray> {
 

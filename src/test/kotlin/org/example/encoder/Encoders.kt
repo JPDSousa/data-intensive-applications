@@ -1,94 +1,55 @@
 package org.example.encoder
 
+import io.kotest.property.Gen
+import io.kotest.property.exhaustive.exhaustive
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
+import org.example.GenWrapper
 import org.example.InstantSerializer
-import org.example.TestGenerator
-import org.example.TestInstance
 import org.koin.dsl.module
 import java.time.Instant
 
+@ExperimentalSerializationApi
 val encoderModule = module {
-    single<Instant2StringEncoders> {
-        DelegateInstant2StringEncoders(
-            StringEncoderGenerator(InstantSerializer())
-        )
-    }
-    single<Instant2ByteArrayEncoders> {
-        DelegateInstant2ByteArrayEncoders(
-            ProtobufEncoderGenerator(InstantSerializer())
-        )
-    }
 
-    single<StringStringMapEntry2StringEncoders> {
-        DelegateStringStringMapEntry2StringEncoders(
-            StringEncoderGenerator(serializer())
-        )
-    }
+    single { Instant2StringEncoders(jsonEncoderGen(InstantSerializer())) }
 
-    single<LongByteArrayMapEntry2StringEncoders> {
-        DelegateLongByteArrayMapEntry2StringEncoders(
-            StringEncoderGenerator(serializer())
-        )
-    }
+    single { Instant2ByteArrayEncoders(protobufEncoderGen(InstantSerializer())) }
 
-    single<StringStringMapEntry2ByteArrayEncoders> {
-        DelegateStringStringMapEntry2ByteArrayEncoders(
-            ProtobufEncoderGenerator(serializer())
-        )
-    }
+    single { StringStringMapEntry2StringEncoders(jsonEncoderGen(serializer())) }
 
-    single<LongByteArrayMapEntry2ByteArrayEncoders> {
-        DelegateLongByteArrayMapEntry2ByteArrayEncoders(
-            ProtobufEncoderGenerator(serializer())
-        )
-    }
+    single { LongByteArrayMapEntry2StringEncoders(jsonEncoderGen(serializer())) }
+
+    single { StringStringMapEntry2ByteArrayEncoders(protobufEncoderGen(serializer())) }
+
+    single { LongByteArrayMapEntry2ByteArrayEncoders(protobufEncoderGen(serializer())) }
 }
 
-interface Encoders<S, T>: TestGenerator<Encoder<S, T>>
+fun <S> jsonEncoderGen(serializer: KSerializer<S>): Gen<Encoder<S, String>>
+        = listOf(JsonStringEncoder(serializer)).exhaustive()
 
-interface Instant2StringEncoders: Encoders<Instant, String>
-interface Instant2ByteArrayEncoders: Encoders<Instant, ByteArray>
+@ExperimentalSerializationApi
+fun <S> protobufEncoderGen(serializer: KSerializer<S>): Gen<Encoder<S, ByteArray>>
+        = listOf(ProtobufBinaryEncoder(serializer)).exhaustive()
 
-private class DelegateInstant2StringEncoders(private val delegate: Encoders<Instant, String>)
-    : Instant2StringEncoders, Encoders<Instant, String> by delegate
+data class Instant2StringEncoders(
+    override val gen: Gen<Encoder<Instant, String>>
+): GenWrapper<Encoder<Instant, String>>
 
-private class DelegateInstant2ByteArrayEncoders(private val delegate: Encoders<Instant, ByteArray>)
-    : Instant2ByteArrayEncoders, Encoders<Instant, ByteArray> by delegate
+data class Instant2ByteArrayEncoders(
+    override val gen: Gen<Encoder<Instant, ByteArray>>
+): GenWrapper<Encoder<Instant, ByteArray>>
 
-interface StringStringMapEntry2StringEncoders: Encoders<Map.Entry<String, String>, String>
-interface LongByteArrayMapEntry2StringEncoders: Encoders<Map.Entry<Long, ByteArray>, String>
-interface StringStringMapEntry2ByteArrayEncoders: Encoders<Map.Entry<String, String>, ByteArray>
-interface LongByteArrayMapEntry2ByteArrayEncoders: Encoders<Map.Entry<Long, ByteArray>, ByteArray>
-
-private class DelegateStringStringMapEntry2StringEncoders(
-    private val delegate: Encoders<Map.Entry<String, String>, String>)
-    : StringStringMapEntry2StringEncoders, Encoders<Map.Entry<String, String>, String> by delegate
-
-private class DelegateLongByteArrayMapEntry2StringEncoders(
-    private val delegate: Encoders<Map.Entry<Long, ByteArray>, String>)
-    : LongByteArrayMapEntry2StringEncoders, Encoders<Map.Entry<Long, ByteArray>, String> by delegate
-
-private class DelegateStringStringMapEntry2ByteArrayEncoders(
-    private val delegate: Encoders<Map.Entry<String, String>, ByteArray>)
-    : StringStringMapEntry2ByteArrayEncoders, Encoders<Map.Entry<String, String>, ByteArray> by delegate
-
-private class DelegateLongByteArrayMapEntry2ByteArrayEncoders(
-    private val delegate: Encoders<Map.Entry<Long, ByteArray>, ByteArray>)
-    : LongByteArrayMapEntry2ByteArrayEncoders, Encoders<Map.Entry<Long, ByteArray>, ByteArray> by delegate
-
-class StringEncoderGenerator<S>(private val serializer: KSerializer<S>): Encoders<S, String> {
-
-    override fun generate() = sequenceOf<TestInstance<Encoder<S, String>>>(
-        TestInstance("${JsonStringEncoder::class.simpleName}") { JsonStringEncoder(serializer) }
-    )
-}
-
-class ProtobufEncoderGenerator<S>(private val serializer: KSerializer<S>): Encoders<S, ByteArray> {
-
-    @ExperimentalSerializationApi
-    override fun generate() = sequenceOf(
-        TestInstance("${ProtobufBinaryEncoder::class.simpleName}") { ProtobufBinaryEncoder(serializer) }
-    )
-}
+data class StringStringMapEntry2StringEncoders(
+    override val gen: Gen<Encoder<Map.Entry<String, String>, String>>
+) : GenWrapper<Encoder<Map.Entry<String, String>, String>>
+data class LongByteArrayMapEntry2StringEncoders(
+    override val gen: Gen<Encoder<Map.Entry<Long, ByteArray>, String>>
+) : GenWrapper<Encoder<Map.Entry<Long, ByteArray>, String>>
+data class StringStringMapEntry2ByteArrayEncoders(
+    override val gen: Gen<Encoder<Map.Entry<String, String>, ByteArray>>
+) : GenWrapper<Encoder<Map.Entry<String, String>, ByteArray>>
+data class LongByteArrayMapEntry2ByteArrayEncoders(
+    override val gen: Gen<Encoder<Map.Entry<Long, ByteArray>, ByteArray>>
+) : GenWrapper<Encoder<Map.Entry<Long, ByteArray>, ByteArray>>

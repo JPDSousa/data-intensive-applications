@@ -1,70 +1,56 @@
 package org.example.kv.lsm.sstable
 
-import org.example.TestInstance
-import org.example.kv.LogKeyValueStoreFactories
+import io.kotest.property.Arb
+import io.kotest.property.Gen
+import io.kotest.property.arbitrary.bind
+import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.LongByteArrayLogKeyValueStoreFactories
 import org.example.kv.StringStringLogKeyValueStoreFactories
-import org.example.kv.lsm.*
+import org.example.kv.lsm.LongByteArrayOpenSegmentFactories
+import org.example.kv.lsm.SegmentDirectories
+import org.example.kv.lsm.SegmentDirectory
+import org.example.kv.lsm.StringStringOpenSegmentFactories
 import org.example.kv.segmentThreshold
-import org.example.log.LogFactories
+import org.example.log.LogFactory
 import org.example.log.LongByteArrayMapEntryLogFactories
 import org.example.log.StringStringMapEntryLogFactories
 import org.koin.dsl.module
 
-private class SSTableOpenSegmentFactories<K: Comparable<K>, V>(
-    private val segmentDirectories: SegmentDirectories,
-    private val memTableFactories: MemTableFactories<K, V>,
-    private val logFactories: LogFactories<Map.Entry<K, V>>,
-    private val logKeyValueStoreFactories: LogKeyValueStoreFactories<K, V>,
-): OpenSegmentFactories<K, V> {
-
-    override fun generate(): Sequence<TestInstance<OpenSegmentFactory<K, V>>> = sequence {
-
-        for (segmentDirectory in segmentDirectories) {
-            for (logFactory in logFactories) {
-                for (logKeyValueStoreFactory in logKeyValueStoreFactories) {
-                    for (memTableFactory in memTableFactories) {
-
-                        yield(TestInstance("${OpenSegmentFactory::class.simpleName} with $segmentDirectory, " +
-                                "$logFactory, $logKeyValueStoreFactory and $memTableFactory") {
-
-                            SSTableOpenSegmentFactory(
-                                segmentDirectory.instance(),
-                                memTableFactory.instance(),
-                                logFactory.instance(),
-                                logKeyValueStoreFactory.instance(),
-                                segmentThreshold
-                            )
-                        })
-                    }
-                }
-            }
-        }
-    }
+fun <K: Comparable<K>, V> sstableOpenSegmentFactories(
+    segmentDirectories: Gen<SegmentDirectory>,
+    memTableFactories: Gen<MemTableFactory<K, V>>,
+    logFactories: Gen<LogFactory<Map.Entry<K, V>>>,
+    logKeyValueStoreFactories: Gen<LogKeyValueStoreFactory<K, V>>,
+) = Arb.bind(
+    segmentDirectories,
+    memTableFactories,
+    logFactories,
+    logKeyValueStoreFactories
+) { segmentDirectory, memTableFactory, logFactory, logKeyValueStoreFactory ->
+    SSTableOpenSegmentFactory(
+        segmentDirectory,
+        memTableFactory,
+        logFactory,
+        logKeyValueStoreFactory,
+        segmentThreshold
+    )
 }
 
 val sstableOpenSegmentFactories = module {
 
-    singleSSTableQ<StringStringOpenSegmentFactories> {
-        DelegateStringStringOpenSegmentFactories(
-            SSTableOpenSegmentFactories(
-                get(),
-                get<StringStringMemTableFactories>(),
-                get<StringStringMapEntryLogFactories>(),
-                get<StringStringLogKeyValueStoreFactories>()
-            )
-        )
-    }
+    singleSSTableQ { StringStringOpenSegmentFactories(
+        sstableOpenSegmentFactories(
+            get<SegmentDirectories>().gen,
+            get<StringStringMemTableFactories>().gen,
+            get<StringStringMapEntryLogFactories>().gen,
+            get<StringStringLogKeyValueStoreFactories>().gen
+    )) }
 
-    singleSSTableQ<LongByteArrayOpenSegmentFactories> {
-        DelegateLongByteArrayOpenSegmentFactories(
-            SSTableOpenSegmentFactories(
-                get(),
-                get<LongByteArrayMemTableFactories>(),
-                get<LongByteArrayMapEntryLogFactories>(),
-                get<LongByteArrayLogKeyValueStoreFactories>()
-            )
-        )
-    }
-
+    singleSSTableQ { LongByteArrayOpenSegmentFactories(
+        sstableOpenSegmentFactories(
+            get<SegmentDirectories>().gen,
+            get<LongByteArrayMemTableFactories>().gen,
+            get<LongByteArrayMapEntryLogFactories>().gen,
+            get<LongByteArrayLogKeyValueStoreFactories>().gen
+        )) }
 }

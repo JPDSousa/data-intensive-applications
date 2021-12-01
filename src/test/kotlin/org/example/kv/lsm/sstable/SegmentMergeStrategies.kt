@@ -1,43 +1,26 @@
 package org.example.kv.lsm.sstable
 
-import org.example.TestInstance
+import io.kotest.property.Gen
 import org.example.kv.lsm.*
+import org.example.map
 import org.koin.dsl.module
 
-private class GenericSegmentMergeStrategies<K: Comparable<K>, V>(
-    private val segmentFactories: SegmentFactories<K, V>
-): SegmentMergeStrategies<K, V> {
-
-    override fun generate(): Sequence<TestInstance<SegmentMergeStrategy<K, V>>> = sequence {
-
-        for (segmentFactory in segmentFactories) {
-
-            yield(TestInstance("${SSTableMergeStrategy::class.simpleName} with $segmentFactory") {
-                SSTableMergeStrategy(
-                    segmentFactory.instance()
-                )
-            })
-        }
-
-    }
-}
+private fun <K: Comparable<K>, V> segmentMergeStrategies(
+    segmentFactories: Gen<SegmentFactory<K, V>>
+) = segmentFactories.map { SSTableMergeStrategy(it) }
 
 internal val segmentMergeStrategiesModule = module {
 
-    singleSSTableQ<StringStringSegmentMergeStrategies> {
-        DelegateStringStringSegmentMergeStrategies(
-            GenericSegmentMergeStrategies(
-                get<StringStringSegmentFactories>()
-            )
+    singleSSTableQ { StringStringSegmentMergeStrategies(
+        segmentMergeStrategies(
+            get<StringStringSegmentFactories>().gen
         )
-    }
+    ) }
 
-    singleSSTableQ<LongByteArraySegmentMergeStrategies> {
-        DelegateLongByteArraySegmentMergeStrategies(
-            GenericSegmentMergeStrategies(
-                get<LongByteArraySegmentFactories>()
-            )
+    singleSSTableQ { LongByteArraySegmentMergeStrategies(
+        segmentMergeStrategies(
+            get<LongByteArraySegmentFactories>().gen
         )
-    }
+    ) }
 
 }
