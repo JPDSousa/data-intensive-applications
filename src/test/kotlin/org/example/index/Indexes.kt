@@ -14,7 +14,6 @@ import org.example.encoder.Encoder
 import org.example.encoder.jsonEncoderGen
 import org.example.encoder.protobufEncoderGen
 import org.example.log.ByteArrayLogFactories
-import org.example.log.LogFactory
 import org.example.log.StringLogFactories
 import org.example.log.logEncoderFactories
 import org.example.merge
@@ -66,11 +65,11 @@ private fun <K> indexFromFactory(gen: Gen<IndexFactory<K>>) = Arb.bind(gen, inde
 }
 
 data class StringIndexEntryLogFactories(
-    override val gen: Gen<LogFactory<IndexEntry<String>>>
-) : GenWrapper<LogFactory<IndexEntry<String>>>
+    override val gen: Gen<IndexLogFactory<String>>
+) : GenWrapper<IndexLogFactory<String>>
 data class LongIndexEntryLogFactories(
-    override val gen: Gen<LogFactory<IndexEntry<Long>>>
-) : GenWrapper<LogFactory<IndexEntry<Long>>>
+    override val gen: Gen<IndexLogFactory<Long>>
+) : GenWrapper<IndexLogFactory<Long>>
 
 data class StringStringEncoders(
     override val gen: Gen<Encoder<IndexEntry<String>, String>>

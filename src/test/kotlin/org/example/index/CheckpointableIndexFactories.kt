@@ -10,7 +10,7 @@ import org.example.encoder.Encoder
 import org.example.encoder.Instant2ByteArrayEncoders
 import org.example.encoder.Instant2StringEncoders
 import org.example.log.ByteArrayLogFactories
-import org.example.log.LogFactory
+import org.example.log.LogFactoryB
 import org.example.log.StringLogFactories
 import org.example.merge
 import org.koin.dsl.module
@@ -35,14 +35,14 @@ val checkpointableIndexFactoriesModule = module {
 
     single {
 
-        val stringGen = indexCheckpointStoreFactories(
+        val stringGen = indexCheckpointStoreFactories<String, String>(
             get(),
             get<StringLogFactories>().gen,
             get<Instant2StringEncoders>().gen,
             get<StringIndexEntryLogFactories>().gen,
         )
 
-        val byteArrayGen = indexCheckpointStoreFactories(
+        val byteArrayGen = indexCheckpointStoreFactories<ByteArray, String>(
             get(),
             get<ByteArrayLogFactories>().gen,
             get<Instant2ByteArrayEncoders>().gen,
@@ -54,14 +54,14 @@ val checkpointableIndexFactoriesModule = module {
 
     single {
 
-        val stringGen = indexCheckpointStoreFactories(
+        val stringGen = indexCheckpointStoreFactories<String, Long>(
             get(),
             get<StringLogFactories>().gen,
             get<Instant2StringEncoders>().gen,
             get<LongIndexEntryLogFactories>().gen,
         )
 
-        val byteArrayGen = indexCheckpointStoreFactories(
+        val byteArrayGen = indexCheckpointStoreFactories<ByteArray, Long>(
             get(),
             get<ByteArrayLogFactories>().gen,
             get<Instant2ByteArrayEncoders>().gen,
@@ -88,9 +88,9 @@ data class LongIndexCheckpointStoreFactories(
 
 private fun <S, K> indexCheckpointStoreFactories(
     clock: Clock,
-    metadataFactories: Gen<LogFactory<S>>,
+    metadataFactories: Gen<LogFactoryB<S>>,
     instantEncoders: Gen<Encoder<Instant, S>>,
-    entryLogFactories: Gen<LogFactory<IndexEntry<K>>>,
+    entryLogFactories: Gen<IndexLogFactory<K>>,
 ): Gen<IndexCheckpointStoreFactory<K>> = Arb.bind(
     metadataFactories,
     instantEncoders,

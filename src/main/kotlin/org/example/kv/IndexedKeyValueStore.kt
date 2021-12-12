@@ -5,8 +5,8 @@ import org.example.generator.Generator
 import org.example.index.CheckpointableIndexFactory
 import org.example.index.Index
 import org.example.index.IndexEntry
+import org.example.log.EntryLogFactory
 import org.example.log.Log
-import org.example.log.LogFactory
 
 private class IndexedKeyValueStore<K, V>(
         private val index: Index<K>,
@@ -88,7 +88,7 @@ private class IndexedKeyValueStore<K, V>(
 class IndexedKeyValueStoreFactory<K, V>(private val indexFactory: CheckpointableIndexFactory<K>,
                                         private val tombstone: V,
                                         private val innerKVSFactory: LogKeyValueStoreFactory<K, V>,
-                                        override val logFactory: LogFactory<Map.Entry<K, V>>,
+                                        override val logFactory: EntryLogFactory<K, V>,
                                         nameGenerator: Generator<String>)
     : LogKeyValueStoreFactory<K, V>, PropertyLogKeyValueStoreFactoryMixin<K, V> {
 

@@ -1,10 +1,8 @@
 package org.example.log
 
 import io.kotest.core.spec.style.shouldSpec
-import io.kotest.matchers.collections.beEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.longs.shouldBeLessThan
-import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.Gen
@@ -96,11 +94,4 @@ fun <T> logTests(
         }
     }
 
-    should("clear removes all entries") {
-        checkAll(config, gen) { log ->
-            log.clear()
-            log.byteLength shouldBe 0L
-            log.useEntries { it.toList() } should beEmpty()
-        }
-    }
 }

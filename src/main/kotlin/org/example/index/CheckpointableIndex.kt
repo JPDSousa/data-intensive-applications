@@ -5,8 +5,7 @@ import mu.KotlinLogging
 import org.example.concepts.Factory
 import org.example.encoder.Encoder
 import org.example.log.Log
-import org.example.log.LogEncoderFactory
-import org.example.log.LogFactory
+import org.example.log.LogFactoryB
 import org.example.recurrent.OpsBasedRecurrentJob
 import org.example.recurrent.RecurrentJob
 import org.example.size.CheckpointStore
@@ -15,6 +14,9 @@ import java.nio.file.Files.notExists
 import java.nio.file.Path
 import java.time.Clock
 import java.time.Instant
+import java.util.concurrent.locks.ReentrantLock
+
+typealias IndexLogFactory<K> = LogFactoryB<IndexEntry<K>>
 
 interface CheckpointableIndex<K>: Index<K> {
 
@@ -26,6 +28,7 @@ interface CheckpointableIndex<K>: Index<K> {
         get() = 0L
 }
 
+
 /**
  * Responsible for checkpointing an index.
  *
@@ -33,42 +36,69 @@ interface CheckpointableIndex<K>: Index<K> {
  * - [sink] to persist the index content
  * - [metadata] to persist metadata related with the checkpointing operation (checkpoint instant).
  */
-internal class IndexCheckpointStore<K, M>(private val clock: Clock,
-                                          private val metadata: Log<M>,
-                                          private val instantEncoder: Encoder<Instant, M>,
-                                          private val sink: Log<IndexEntry<K>>,
-                                          override var lastInstant: Instant?
+private class IndexCheckpointStore<K, M>(
+    private val clock: Clock,
+    private val storePath: Path,
+    private val metadataLogFactory: LogFactoryB<M>,
+    private val instantEncoder: Encoder<Instant, M>,
+    private val sinkLogFactory: IndexLogFactory<K>,
+    override var lastInstant: Instant?
 ) : CheckpointStore<Sequence<IndexEntry<K>>> {
 
     private val logger = KotlinLogging.logger {}
+    private val lock = ReentrantLock()
+
+    private var metadata = resetMetadata()
+    private var sink = resetSink()
+
+    private fun resetMetadata() = lazy(lock) {
+        val metadataPath = storePath.parent
+            .resolve("${storePath.fileName}_meta")
+
+        if (notExists(metadataPath)) {
+            logger.debug { "Creating index metadata file." }
+            createFile(metadataPath)
+        } else {
+            logger.debug { "Index metadata file already exists. Recovering metadata." }
+        }
+        metadataLogFactory.create(metadataPath)
+    }
+    private fun resetSink() = lazy(lock) { sinkLogFactory.create(storePath) }
 
     override fun checkpointState(state: Sequence<IndexEntry<K>>) {
 
-        sink.clear()
-        metadata.clear()
+        if (metadata.isInitialized()) {
+            metadataLogFactory.trash.mark(metadata.value)
+            metadata = resetMetadata()
+        }
+        if (sink.isInitialized()) {
+            sinkLogFactory.trash.mark(sink.value)
+            sink = resetSink()
+        }
 
         clock.instant()
             .also { this.lastInstant = it }
             .let { instantEncoder.encode(it) }
-            .let { metadata.append(it) }
+            .let { metadata.value.append(it) }
 
-        val nEntries = sink.appendAll(state).count()
+        val nEntries = sink.value.appendAll(state).count()
 
         logger.trace { "Checkpointed $nEntries" }
     }
 
-    override fun <R> useLastState(block: (Sequence<IndexEntry<K>>?) -> R) = sink.useEntries {
+    override fun <R> useLastState(block: (Sequence<IndexEntry<K>>?) -> R) = sink.value.useEntries {
         block(it)
     }
 
 }
 
 @Factory(IndexCheckpointStore::class)
-class LogBackedIndexCheckpointStoreFactory<K, M>(private val clock: Clock,
-                                                 private val metadataLogFactory: LogFactory<M>,
-                                                 private val instantEncoder: Encoder<Instant, M>,
-                                                 private val entryLogFactory: LogFactory<IndexEntry<K>>)
-    : IndexCheckpointStoreFactory<K> {
+class LogBackedIndexCheckpointStoreFactory<K, M>(
+    private val clock: Clock,
+    private val metadataLogFactory: LogFactoryB<M>,
+    private val instantEncoder: Encoder<Instant, M>,
+    private val entryLogFactory: LogFactoryB<IndexEntry<K>>
+) : IndexCheckpointStoreFactory<K> {
 
     private val logger = KotlinLogging.logger {}
 
@@ -84,9 +114,10 @@ class LogBackedIndexCheckpointStoreFactory<K, M>(private val clock: Clock,
         }
         return IndexCheckpointStore(
             clock,
-            metadata,
+            storePath,
+            metadataLogFactory,
             instantEncoder,
-            entryLogFactory.create(storePath),
+            entryLogFactory,
             lastInstant
         )
     }
@@ -167,7 +198,7 @@ class CheckpointableIndexFactory<K>(private val storeFactory: IndexCheckpointSto
 
     private fun createRecurringCheckpoint(index: CheckpointableIndex<K>): RecurrentJob {
 
-        return OpsBasedRecurrentJob(index::checkpoint, checkpointCycle, coroutineDispatcher)
+        return OpsBasedRecurrentJob(checkpointCycle, coroutineDispatcher, index::checkpoint)
     }
 
     private fun resolveIndexPath(indexName: String) = indexDir.resolve("index-$indexName.log")
@@ -180,13 +211,4 @@ private fun <K> Index<K>.loadLastCheckpoint(store: CheckpointStore<Sequence<Inde
             putAllOffsets(it.asIterable())
         }
     }
-}
-
-class IndexEntryLogFactory<E, K>(innerFactory: LogFactory<E>,
-                                 encoder: Encoder<IndexEntry<K>, E>): LogFactory<IndexEntry<K>> {
-
-    private val encodedFactory = LogEncoderFactory(innerFactory, encoder)
-
-    override fun create(logPath: Path): Log<IndexEntry<K>> = encodedFactory.create(logPath)
-
 }

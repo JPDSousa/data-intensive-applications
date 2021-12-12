@@ -35,7 +35,7 @@ private val testableSizes = listOf(0, 1, 10).exhaustive()
 
 private fun <T> logs(
     resources: TestResources,
-    factories: Gen<LogFactory<T>>,
+    factories: Gen<LogFactoryB<T>>,
     valueGenerator: Arb<T>
 ) = Arb.bind(
     factories,

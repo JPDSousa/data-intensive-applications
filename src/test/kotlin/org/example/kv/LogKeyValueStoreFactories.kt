@@ -8,7 +8,7 @@ import org.example.generator.StringGenerator
 import org.example.index.CheckpointableIndexFactory
 import org.example.index.LongCheckpointableIndexFactories
 import org.example.index.StringCheckpointableIndexFactories
-import org.example.log.LogFactory
+import org.example.log.EntryLogFactory
 import org.example.log.LongByteArrayMapEntryLogFactories
 import org.example.log.StringStringMapEntryLogFactories
 import org.example.map
@@ -28,7 +28,7 @@ val logKeyValueStoreFactoryModule = module {
 
 }
 
-private inline fun <K, V, reified L: GenWrapper<LogFactory<Map.Entry<K, V>>>,
+private inline fun <K, V, reified L: GenWrapper<EntryLogFactory<K, V>>,
         reified C: GenWrapper<CheckpointableIndexFactory<K>>> Scope.composite(tombstone: V)
         : Gen<LogKeyValueStoreFactory<K, V>> {
 

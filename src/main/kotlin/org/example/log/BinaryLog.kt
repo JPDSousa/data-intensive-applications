@@ -2,82 +2,103 @@ package org.example.log
 
 import org.example.readOnly
 import org.example.size
+import org.example.trash.Trash
 import org.koin.core.qualifier.named
 import java.io.BufferedOutputStream
 import java.io.OutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
-import java.nio.file.Files.delete
 import java.nio.file.Files.newOutputStream
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption.APPEND
 import java.nio.file.StandardOpenOption.CREATE
 import java.util.zip.CRC32
 
-val binaryLogQ = named(BinaryLog::class.qualifiedName!!)
+val binaryLogQ = named(BinaryLogFactory.BinaryLog::class.qualifiedName!!)
 
-private class BinaryLog(private val path: Path,
-                        override var lastOffset: Long,
-                        override var byteLength: Long): Log<ByteArray> {
+class BinaryLogFactory(private val pathTrash: Trash<Path>): LogFactory<ByteArray, BinaryLogFactory.BinaryLog> {
 
-    override fun append(entry: ByteArray): Long {
+    inner class BinaryLog(val path: Path,
+                          override var lastOffset: Long,
+                          override var byteLength: Long): Log<ByteArray> {
 
-        lastOffset = byteLength
+        override fun append(entry: ByteArray): Long {
 
-        path.writeOnly { it.writeEntry(entry) }
+            lastOffset = byteLength
 
-        byteLength += headerSize + entry.size
+            path.writeOnly { it.writeEntry(entry) }
 
-        return lastOffset
-    }
+            byteLength += headerSize + entry.size
 
-    override fun appendAll(entries: Sequence<ByteArray>): Sequence<Long> {
-
-        if (entries.none()) {
-            return emptySequence()
+            return lastOffset
         }
 
-        return path.writeOnly { stream ->
-            entries.map { entry ->
-                // 'size' is stale at this point, containing the lastOffset
-                lastOffset = byteLength
+        override fun appendAll(entries: Sequence<ByteArray>): Sequence<Long> {
 
-                stream.writeEntry(entry)
-
-                byteLength += headerSize + entry.size
-                return@map lastOffset
-            }.toList().asSequence()
-        }
-    }
-
-    override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R = when (byteLength) {
-        0L -> block(emptySequence())
-        else -> path.readOnly {
-            if (offset > 0) {
-                it.seek(offset)
+            if (entries.none()) {
+                return emptySequence()
             }
-            block(EntryIterator(it).asSequence())
-        }
-    }
 
-    override fun <R> useEntriesWithOffset(
-        offset: Long,
-        block: (Sequence<EntryWithOffset<ByteArray>>) -> R
-    ): R = when(path.size() == 0L) {
-        true -> block(emptySequence())
-        false -> path.readOnly {
-            if (offset > 0) {
-                it.seek(offset)
+            return path.writeOnly { stream ->
+                entries.map { entry ->
+                    // 'size' is stale at this point, containing the lastOffset
+                    lastOffset = byteLength
+
+                    stream.writeEntry(entry)
+
+                    byteLength += headerSize + entry.size
+                    return@map lastOffset
+                }.toList().asSequence()
             }
-            block(EntryWithOffsetIterator(it).asSequence())
         }
+
+        override fun <R> useEntries(offset: Long, block: (Sequence<ByteArray>) -> R): R = when (byteLength) {
+            0L -> block(emptySequence())
+            else -> path.readOnly {
+                if (offset > 0) {
+                    it.seek(offset)
+                }
+                block(EntryIterator(it).asSequence())
+            }
+        }
+
+        override fun <R> useEntriesWithOffset(
+            offset: Long,
+            block: (Sequence<EntryWithOffset<ByteArray>>) -> R
+        ): R = when(path.size() == 0L) {
+            true -> block(emptySequence())
+            false -> path.readOnly {
+                if (offset > 0) {
+                    it.seek(offset)
+                }
+                block(EntryWithOffsetIterator(it).asSequence())
+            }
+        }
+
     }
 
-    override fun clear() {
-        delete(path)
-        byteLength = 0L
-        lastOffset = 0L
+    private inner class BinaryTrash: Trash<BinaryLog> {
+        override fun mark(deleteMe: BinaryLog) = pathTrash.mark(deleteMe.path)
     }
+
+    override fun create(logPath: Path): BinaryLog {
+
+        val size = logPath.size()
+        val lastOffset = when (size) {
+            0L -> 0L
+            else -> logPath.readOnly {
+                // will process the entire file, unfortunately
+                EntryWithOffsetIterator(it).asSequence()
+                    .lastOrNull()
+                    ?.offset
+                    ?: 0L
+            }
+        }
+
+        return BinaryLog(logPath, lastOffset, size)
+    }
+
+    override val trash: Trash<BinaryLog> = BinaryTrash()
 
     companion object {
 
@@ -110,7 +131,7 @@ private class EntryWithOffsetIterator(private val raf: RandomAccessFile):
 
 private fun OutputStream.writeEntry(entry: ByteArray) {
 
-    val header = ByteBuffer.allocate(BinaryLog.headerSize)
+    val header = ByteBuffer.allocate(BinaryLogFactory.headerSize)
 
     val checksum = CRC32()
     checksum.update(entry)
@@ -139,24 +160,3 @@ private fun RandomAccessFile.readEntry(): ByteArray {
 private fun <T> Path.writeOnly(block: (OutputStream) -> T): T = BufferedOutputStream(
     newOutputStream(this, CREATE, APPEND))
     .use(block)
-
-object BinaryLogFactory: LogFactory<ByteArray> {
-
-    override fun create(logPath: Path): Log<ByteArray> {
-
-        val size = logPath.size()
-        val lastOffset = when (size) {
-            0L -> 0L
-            else -> logPath.readOnly {
-                // will process the entire file, unfortunately
-                EntryWithOffsetIterator(it).asSequence()
-                    .lastOrNull()
-                    ?.offset
-                    ?: 0L
-            }
-        }
-
-        return BinaryLog(logPath, lastOffset, size)
-    }
-
-}

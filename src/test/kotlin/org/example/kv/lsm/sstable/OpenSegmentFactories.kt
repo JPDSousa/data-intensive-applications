@@ -11,7 +11,7 @@ import org.example.kv.lsm.SegmentDirectories
 import org.example.kv.lsm.SegmentDirectory
 import org.example.kv.lsm.StringStringOpenSegmentFactories
 import org.example.kv.segmentThreshold
-import org.example.log.LogFactory
+import org.example.log.EntryLogFactory
 import org.example.log.LongByteArrayMapEntryLogFactories
 import org.example.log.StringStringMapEntryLogFactories
 import org.koin.dsl.module
@@ -19,7 +19,7 @@ import org.koin.dsl.module
 fun <K: Comparable<K>, V> sstableOpenSegmentFactories(
     segmentDirectories: Gen<SegmentDirectory>,
     memTableFactories: Gen<MemTableFactory<K, V>>,
-    logFactories: Gen<LogFactory<Map.Entry<K, V>>>,
+    logFactories: Gen<EntryLogFactory<K, V>>,
     logKeyValueStoreFactories: Gen<LogKeyValueStoreFactory<K, V>>,
 ) = Arb.bind(
     segmentDirectories,

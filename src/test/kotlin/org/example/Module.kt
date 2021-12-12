@@ -10,6 +10,7 @@ import org.example.index.indexModule
 import org.example.kv.kvModule
 import org.example.log.logModule
 import org.example.size.calculatorsModule
+import org.example.trash.trashes
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.scope.Scope
 import org.koin.dsl.koinApplication
@@ -37,7 +38,8 @@ fun application() = koinApplication {
                 kvModule +
                 logModule +
                 encoderModule +
-                indexModule
+                indexModule +
+                trashes
 
     modules(allModules)
 }

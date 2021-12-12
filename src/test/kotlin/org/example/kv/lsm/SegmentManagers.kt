@@ -8,7 +8,7 @@ import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.LongByteArrayLogKeyValueStoreFactories
 import org.example.kv.StringStringLogKeyValueStoreFactories
 import org.example.kv.segmentThreshold
-import org.example.log.LogFactory
+import org.example.log.EntryLogFactory
 import org.example.log.LongByteArrayMapEntryLogFactories
 import org.example.log.StringStringMapEntryLogFactories
 import org.koin.dsl.module
@@ -21,7 +21,7 @@ data class LongByteArraySegmentManagers(
 ) : GenWrapper<SegmentManager<Long, ByteArray>>
 
 fun <K, V> segmentManagers(
-    logFactories: Gen<LogFactory<Map.Entry<K, V>>>,
+    logFactories: Gen<EntryLogFactory<K, V>>,
     segmentKVFactories: Gen<LogKeyValueStoreFactory<K, V>>,
     openSegmentFactories: Gen<OpenSegmentFactory<K, V>>,
     segmentMergeStrategies: Gen<SegmentMergeStrategy<K, V>>,

@@ -10,12 +10,12 @@ import io.kotest.property.arbitrary.next
 import io.kotest.property.checkAll
 import org.example.DataEntry
 import org.example.defaultPropTestConfig
-import org.example.log.LogFactory
+import org.example.log.EntryLogFactory
 import org.example.toMap
 
 fun <K, V> logKeyValueStoreFactoryTests(
     gen: Gen<LogKeyValueStoreFactory<K, V>>,
-    logFactories: Gen<LogFactory<Map.Entry<K, V>>>,
+    logFactories: Gen<EntryLogFactory<K, V>>,
     entryGen: Arb<DataEntry<K, V>>,
     config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {

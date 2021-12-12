@@ -8,7 +8,7 @@ import org.example.kv.lsm.OpenSegment
 import org.example.kv.lsm.OpenSegmentFactory
 import org.example.kv.lsm.Segment
 import org.example.kv.lsm.SegmentDirectory
-import org.example.log.LogFactory
+import org.example.log.EntryLogFactory
 import java.util.concurrent.atomic.AtomicInteger
 
 private class SequentialOpenSegment<K, V>(
@@ -25,7 +25,7 @@ private class SequentialOpenSegment<K, V>(
 
 class SequentialOpenSegmentFactory<K, V>(
     private val segmentDirectory: SegmentDirectory,
-    private val logFactory: LogFactory<Map.Entry<K, V>>,
+    private val logFactory: EntryLogFactory<K, V>,
     private val keyValueStoreFactory: LogKeyValueStoreFactory<K, V>,
     private val segCounter: AtomicInteger = AtomicInteger()
 ): OpenSegmentFactory<K, V> {

@@ -2,11 +2,10 @@ package org.example.kv
 
 import org.example.DataEntry
 import org.example.concepts.AppendMixin
-import org.example.concepts.ClearMixin
 import org.example.concepts.SizeMixin
+import org.example.log.EntryLogFactory
 import org.example.log.EntryWithOffset
 import org.example.log.Log
-import org.example.log.LogFactory
 import org.example.possiblyArrayEquals
 
 private class SingleLogKeyValueStore<K, V>(
@@ -14,8 +13,7 @@ private class SingleLogKeyValueStore<K, V>(
     private val tombstone: V
 ): LogKeyValueStore<K, V>,
     AppendMixin<Map.Entry<K, V>, Long> by log,
-    SizeMixin by log,
-    ClearMixin by log {
+    SizeMixin by log {
 
     override fun get(key: K): V? = this[key, 0]
 
@@ -50,10 +48,16 @@ private class SingleLogKeyValueStore<K, V>(
         lastValue != null && !possiblyArrayEquals(lastValue, tombstone)
     }
 
+    // TODO it's more efficient to just create a new log and trash the current one
+    override fun clear() {
+        val keysToBeDeleted = useEntries { entries -> entries.map { it.key }.toList() }
+        keysToBeDeleted.forEach { delete(it) }
+    }
+
 }
 
 internal class SingleLogKeyValueStoreFactory<K, V>(
-    override val logFactory: LogFactory<Map.Entry<K, V>>,
+    override val logFactory: EntryLogFactory<K, V>,
     private val tombstone: V
 ): LogKeyValueStoreFactory<K, V>, PropertyLogKeyValueStoreFactoryMixin<K, V> {
 

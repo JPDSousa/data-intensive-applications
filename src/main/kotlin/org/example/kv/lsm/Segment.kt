@@ -4,7 +4,7 @@ import org.example.concepts.LimitedSizeMixin
 import org.example.kv.LogKeyValueStore
 import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.TombstoneKeyValueStore
-import org.example.log.LogFactory
+import org.example.log.EntryLogFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -36,7 +36,7 @@ interface OpenSegmentFactory<K, V> {
 open class SegmentManager<K, V>(
     private val openSegmentFactory: OpenSegmentFactory<K, V>,
     private val directory: SegmentDirectory,
-    private val logFactory: LogFactory<Map.Entry<K, V>>,
+    private val logFactory: EntryLogFactory<K, V>,
     private val logKVFactory: LogKeyValueStoreFactory<K, V>,
     private val mergeStrategy: SegmentMergeStrategy<K, V>,
     private val segmentThreshold: Long): OpenSegmentFactory<K, V> by openSegmentFactory  {
@@ -56,7 +56,7 @@ open class SegmentManager<K, V>(
 
 class SegmentFactory<K, V>(
     private val directory: SegmentDirectory,
-    private val logFactory: LogFactory<Map.Entry<K, V>>,
+    private val logFactory: EntryLogFactory<K, V>,
     private val logKVFactory: LogKeyValueStoreFactory<K, V>,
     private val segmentThreshold: Long,
     private val idGenerator: AtomicInteger = AtomicInteger()

@@ -130,9 +130,9 @@ class LSMKeyValueStoreFactory<K, V>(private val tombstone: V, private val dispat
     }
 
     private fun createRecurrentMerge(lsm: LSMKeyValueStore<K, V>) = OpsBasedRecurrentJob(
-        lsm::compress,
         10_000,
-        dispatcher
+        dispatcher,
+        lsm::compress
     )
 
 }

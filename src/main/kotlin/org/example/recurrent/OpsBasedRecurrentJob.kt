@@ -5,9 +5,11 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 
-class OpsBasedRecurrentJob(private val executable: () -> Unit,
-                           private val triggerThreshold: Long,
-                           private val coroutineDispatcher: CoroutineDispatcher): RecurrentJob {
+class OpsBasedRecurrentJob(
+    private val triggerThreshold: Long,
+    private val coroutineDispatcher: CoroutineDispatcher,
+    private val executable: () -> Unit
+): RecurrentJob {
 
     private val logger = KotlinLogging.logger {}
 

@@ -2,8 +2,8 @@ package org.example.kv
 
 import org.example.DataEntry
 import org.example.concepts.*
+import org.example.log.EntryLogFactory
 import org.example.log.Log
-import org.example.log.LogFactory
 import java.nio.file.Path
 
 interface KeyValueStore<K, V>: ImmutableDictionaryMixin<K, V>, MutableDictionaryMixin<K, V>, ClearMixin
@@ -31,6 +31,7 @@ interface LogKeyValueStore<K, V>
 
     fun loadToMemory(): Map<K, V> = useEntries { entries -> entries.toMap() }
 
+    // TODO this is spitting stale and deleted keys!!!
     fun <R> useEntries(offset: Long = 0L, block: (Sequence<KeyValueEntry<K, V>>) -> R): R = log.useEntriesWithOffset(offset) {
         it.map { logEntry -> KeyValueEntry(logEntry.entry, logEntry.offset) }
             .let(block)
@@ -67,7 +68,7 @@ interface LogKeyValueStoreFactory<K, V> {
 
 interface PropertyLogKeyValueStoreFactoryMixin<K, V>: LogKeyValueStoreFactory<K, V> {
 
-    val logFactory: LogFactory<Map.Entry<K, V>>
+    val logFactory: EntryLogFactory<K, V>
 
     override fun createFromPair(logPath: Path) = createFromPair(logPath.asLog())
 

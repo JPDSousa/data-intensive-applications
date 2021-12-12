@@ -1,9 +1,10 @@
 package org.example.log
 
+import org.example.trash.Trash
 import org.koin.core.qualifier.named
 import java.nio.file.Path
 
-val sizeLogQ = named(SizeCachedLog::class.qualifiedName!!)
+val sizeLogQ = named(SizeCachedLogFactory.SizeCachedLog::class.qualifiedName!!)
 
 private data class SizeEntry(val size: Int, private val offset: Long, val log: Log<*>) {
 
@@ -35,43 +36,45 @@ private data class SizeEntry(val size: Int, private val offset: Long, val log: L
     )
 }
 
-private class SizeCachedLog<T>(
-    private val log: Log<T>
-): Log<T> by log {
+class SizeCachedLogFactory<T>(
+    private val decoratedFactory: LogFactoryB<T>
+): LogFactory<T, SizeCachedLogFactory<T>.SizeCachedLog> {
 
-    private var cachedSize = SizeEntry(log.size, log.lastOffset, log)
+    inner class SizeCachedLog(
+        val log: Log<T>
+    ): Log<T> by log {
 
-    override val size: Int
-        get() {
-            if (cachedSize.isOutdated()) {
-                cachedSize = cachedSize.update()
+        private var cachedSize = SizeEntry(log.size, log.lastOffset, log)
+
+        override val size: Int
+            get() {
+                if (cachedSize.isOutdated()) {
+                    cachedSize = cachedSize.update()
+                }
+
+                return cachedSize.size
             }
 
-            return cachedSize.size
+        override fun append(entry: T) = log.append(entry)
+            .also { cachedSize++ }
+
+        override fun appendAll(entries: Sequence<T>): Sequence<Long> {
+            var count = 0
+            return log.appendAll(entries)
+                .onEach { count++ }
+                .also { cachedSize += count }
         }
-
-    override fun clear() {
-        log.clear()
-        cachedSize = cachedSize.clear()
     }
 
-    override fun append(entry: T) = log.append(entry)
-        .also { cachedSize++ }
+    private inner class SizeLogTrash: Trash<SizeCachedLog> {
 
-    override fun appendAll(entries: Sequence<T>): Sequence<Long> {
-        var count = 0
-        return log.appendAll(entries)
-            .onEach { count++ }
-            .also { cachedSize += count }
+        override fun mark(deleteMe: SizeCachedLog) = decoratedFactory.trash.mark(deleteMe.log)
     }
-}
-
-class SizeCachedLogFactory<T>(
-    private val decoratedFactory: LogFactory<T>
-): LogFactory<T> {
 
     override fun create(logPath: Path): Log<T> = SizeCachedLog(
         decoratedFactory.create(logPath)
     )
+
+    override val trash: Trash<SizeCachedLog> = SizeLogTrash()
 
 }

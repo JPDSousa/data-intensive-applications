@@ -8,7 +8,7 @@ import org.example.kv.LogKeyValueStoreFactory
 import org.example.kv.LongByteArrayLogKeyValueStoreFactories
 import org.example.kv.StringStringLogKeyValueStoreFactories
 import org.example.kv.segmentThreshold
-import org.example.log.LogFactory
+import org.example.log.EntryLogFactory
 import org.example.log.LongByteArrayMapEntryLogFactories
 import org.example.log.StringStringMapEntryLogFactories
 import org.koin.core.module.Module
@@ -24,7 +24,7 @@ data class LongByteArraySegmentFactories(
 private inline fun <K, V, reified R, reified L, reified LKV> Module.singleSegmentFactories(
     crossinline operation: (Gen<SegmentFactory<K, V>>) -> R
 ) where R:  GenWrapper<SegmentFactory<K, V>>,
-        L: GenWrapper<LogFactory<Map.Entry<K, V>>>,
+        L: GenWrapper<EntryLogFactory<K, V>>,
         LKV: GenWrapper<LogKeyValueStoreFactory<K, V>> {
     single { operation(Arb.bind(
         get<L>().gen,

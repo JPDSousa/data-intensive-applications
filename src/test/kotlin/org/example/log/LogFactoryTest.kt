@@ -11,7 +11,7 @@ import io.kotest.property.checkAll
 import org.example.defaultPropTestConfig
 
 fun <T> logFactoryTests(
-    gen: Gen<LogFactory<T>>,
+    gen: Gen<LogFactoryB<T>>,
     valueGen: Arb<T>,
     config: PropTestConfig = defaultPropTestConfig,
 ) = shouldSpec {

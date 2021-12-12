@@ -3,26 +3,40 @@ package org.example.log
 import io.kotest.property.Arb
 import io.kotest.property.Gen
 import io.kotest.property.arbitrary.bind
-import io.kotest.property.exhaustive.exhaustive
 import org.example.GenWrapper
 import org.example.encoder.*
 import org.example.getAllGen
 import org.example.map
+import org.example.trash.PathTrashes
 import org.koin.core.module.Module
 import org.koin.core.qualifier.Qualifier
+import org.koin.core.scope.Scope
 import org.koin.dsl.module
+
+data class StringLogFactories(
+    override val gen: Gen<LogFactoryB<String>>
+) : GenWrapper<LogFactoryB<String>>
+data class ByteArrayLogFactories(
+    override val gen: Gen<LogFactoryB<ByteArray>>
+) : GenWrapper<LogFactoryB<ByteArray>>
+
+data class StringStringMapEntryLogFactories(
+    override val gen: Gen<EntryLogFactory<String, String>>
+) : GenWrapper<EntryLogFactory<String, String>>
+data class LongByteArrayMapEntryLogFactories(
+    override val gen: Gen<EntryLogFactory<Long, ByteArray>>
+) : GenWrapper<EntryLogFactory<Long, ByteArray>>
 
 // TODO generate delegates in different order
 internal inline fun <T, S, reified TFG, reified SFG, reified E> Module.registerLogGenerators(
     baseQualifier: Qualifier,
     typeQualifiers: Iterable<Qualifier>,
     targetEncodingQualifiers: Iterable<Qualifier>,
-    crossinline baseFactory: () -> Gen<LogFactory<T>>,
-    crossinline baseDelegate: (Gen<LogFactory<T>>) -> TFG,
-)
-        where TFG: GenWrapper<LogFactory<T>>,
-              SFG: GenWrapper<LogFactory<S>>,
-              E: GenWrapper<Encoder<T, S>> {
+    crossinline baseFactory: Scope.() -> Gen<LogFactoryB<T>>,
+    crossinline baseDelegate: (Gen<LogFactoryB<T>>) -> TFG,
+) where TFG: GenWrapper<LogFactoryB<T>>,
+        SFG: GenWrapper<LogFactoryB<S>>,
+        E: GenWrapper<Encoder<T, S>> {
 
     single(baseQualifier) { baseDelegate(baseFactory()) }
 
@@ -30,18 +44,25 @@ internal inline fun <T, S, reified TFG, reified SFG, reified E> Module.registerL
     single(logEncoderQ) { baseDelegate(
         logEncoderFactories(
             get<E>().gen,
-            getAllGen<LogFactory<S>, SFG>(logEncoderQualifiers)
+            getAllGen<LogFactoryB<S>, SFG>(logEncoderQualifiers)
         )
     ) }
 
     val sizeCachedQualifiers = typeQualifiers - delegateQualifiers
     single(sizeLogQ) { baseDelegate(
-        getAllGen<LogFactory<T>, TFG>(sizeCachedQualifiers).map {
-            SizeCachedLogFactory(it)
+        getAllGen<LogFactoryB<T>, TFG>(sizeCachedQualifiers).map {
+            SizeCachedLogFactory(it) as LogFactoryB<T> /* = org.example.log.LogFactory<T, org.example.log.Log<T>> */
         }
     ) }
 
-    single { baseDelegate(getAllGen<LogFactory<T>, TFG>(typeQualifiers)) }
+    single { baseDelegate(getAllGen<LogFactoryB<T>, TFG>(typeQualifiers)) }
+}
+
+fun <S, T> logEncoderFactories(
+    encoders: Gen<Encoder<S, T>>,
+    factories: Gen<LogFactoryB<T>>
+): Gen<LogFactoryB<S>> = Arb.bind(encoders, factories) { encoder, factory ->
+    LogEncoderFactory(factory, encoder) as LogFactoryB<S>
 }
 
 val logFactoriesModule = module {
@@ -50,7 +71,7 @@ val logFactoriesModule = module {
         lineLogQ,
         stringQualifiers,
         byteArrayQualifiers,
-        { listOf(LineLogFactory).exhaustive() },
+        { get<PathTrashes>().gen.map { LineLogFactory(it) as LogFactoryB<String> /* = org.example.log.LogFactory<kotlin.String, org.example.log.Log<kotlin.String>> */ } },
         { StringLogFactories(it) },
     )
 
@@ -58,7 +79,7 @@ val logFactoriesModule = module {
         binaryLogQ,
         byteArrayQualifiers,
         stringQualifiers,
-        { listOf(BinaryLogFactory).exhaustive() },
+        { get<PathTrashes>().gen.map { BinaryLogFactory(it) as LogFactoryB<ByteArray> /* = org.example.log.LogFactory<kotlin.ByteArray, org.example.log.Log<kotlin.ByteArray>> */ } },
         { ByteArrayLogFactories(it) }
     )
 
@@ -75,25 +96,4 @@ val logFactoriesModule = module {
             get<StringLogFactories>().gen
         )
     ) }
-}
-
-data class StringLogFactories(
-    override val gen: Gen<LogFactory<String>>
-) : GenWrapper<LogFactory<String>>
-data class ByteArrayLogFactories(
-    override val gen: Gen<LogFactory<ByteArray>>
-) : GenWrapper<LogFactory<ByteArray>>
-
-data class StringStringMapEntryLogFactories(
-    override val gen: Gen<LogFactory<Map.Entry<String, String>>>
-) : GenWrapper<LogFactory<Map.Entry<String, String>>>
-data class LongByteArrayMapEntryLogFactories(
-    override val gen: Gen<LogFactory<Map.Entry<Long, ByteArray>>>
-) : GenWrapper<LogFactory<Map.Entry<Long, ByteArray>>>
-
-fun <S, T> logEncoderFactories(
-    encoders: Gen<Encoder<S, T>>,
-    factories: Gen<LogFactory<T>>
-): Gen<LogFactory<S>> = Arb.bind(encoders, factories) { encoder, factory ->
-    LogEncoderFactory(factory, encoder)
 }
